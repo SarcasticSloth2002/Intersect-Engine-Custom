@@ -15,6 +15,20 @@ public partial class EquipmentOptions
         "Weapon",
         "Shield",
         "Boots",
+        "Race",
+        "Backstory",
+    ];
+
+    /// <summary>
+    /// Slot names that, once something is equipped there, cannot be
+    /// unequipped or swapped through normal means (Player.EquipItem/
+    /// UnequipItem both check this). Use Player.SetLockedSlotItem to bypass
+    /// intentionally (a race-change potion, a quest reward, etc).
+    /// </summary>
+    public List<string> LockedSlots { get; set; } =
+    [
+        "Race",
+        "Backstory",
     ];
 
     public List<string> ToolTypes { get; set; } =

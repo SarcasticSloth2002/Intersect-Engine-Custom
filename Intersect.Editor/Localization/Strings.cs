@@ -1109,6 +1109,8 @@ public static partial class Strings
 
         public static LocalizedString damagetype = @"Damage Type:";
 
+        public static LocalizedString elementtype = @"Element:";
+
         public static LocalizedString delete = @"Delete Class";
 
         public static LocalizedString deleteprompt =
@@ -1274,6 +1276,17 @@ Tick timer saved in server config.json.";
             {0, @"Physical"},
             {1, @"Magic"},
             {2, @"True"},
+        };
+
+        public static Dictionary<int, LocalizedString> elementtypes = new Dictionary<int, LocalizedString>
+        {
+            {0, @"None"},
+            {1, @"Fire"},
+            {2, @"Frost"},
+            {3, @"Storm"},
+            {4, @"Nature"},
+            {5, @"Holy"},
+            {6, @"Shadow"},
         };
 
         public static LocalizedString exp = @"Experience";
@@ -3793,6 +3806,8 @@ Tick timer saved in server config.json.";
 
         public static LocalizedString damagetype = @"Damage Type:";
 
+        public static LocalizedString elementtype = @"Element:";
+
         public static LocalizedString defensebonus = @"Defense:";
 
         public static LocalizedString delete = @"Delete Item";
@@ -4507,6 +4522,8 @@ Tick timer saved in server config.json.";
         public static LocalizedString critmultiplier = @"Crit Multiplier (Default 1.5x):";
 
         public static LocalizedString damagetype = @"Damage Type:";
+
+        public static LocalizedString elementtype = @"Element:";
 
         public static LocalizedString defense = @"Defense:";
 
@@ -5277,6 +5294,8 @@ Tick timer saved in server config.json.";
         public static LocalizedString damagegroup = @"Damage";
 
         public static LocalizedString damagetype = @"Damage Type:";
+
+        public static LocalizedString elementtype = @"Element:";
 
         public static LocalizedString dash = @"Dash";
 

@@ -255,6 +255,13 @@ public partial class FrmItem : EditorForm
             cmbDamageType.Items.Add(Strings.Combat.damagetypes[i]);
         }
 
+        lblElement.Text = Strings.ItemEditor.elementtype;
+        cmbElement.Items.Clear();
+        for (var i = 0; i < Strings.Combat.elementtypes.Count; i++)
+        {
+            cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
+        }
+
         lblScalingStat.Text = Strings.ItemEditor.scalingstat;
         lblScalingAmount.Text = Strings.ItemEditor.scalingamount;
         lblAttackAnimation.Text = Strings.ItemEditor.attackanimation;
@@ -441,6 +448,7 @@ public partial class FrmItem : EditorForm
             }
 
             cmbDamageType.SelectedIndex = mEditorItem.DamageType;
+            cmbElement.SelectedIndex = mEditorItem.Element;
             cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
 
             //External References
@@ -787,6 +795,11 @@ public partial class FrmItem : EditorForm
     private void cmbDamageType_SelectedIndexChanged(object sender, EventArgs e)
     {
         mEditorItem.DamageType = cmbDamageType.SelectedIndex;
+    }
+
+    private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        mEditorItem.Element = cmbElement.SelectedIndex;
     }
 
     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)

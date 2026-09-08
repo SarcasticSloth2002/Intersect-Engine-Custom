@@ -240,6 +240,12 @@ public partial class FrmNpc : EditorForm
             cmbDamageType.Items.Add(Strings.Combat.damagetypes[i]);
         }
 
+        cmbElement.Items.Clear();
+        for (var i = 0; i < Strings.Combat.elementtypes.Count; i++)
+        {
+            cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
+        }
+
         lblScalingStat.Text = Strings.NpcEditor.scalingstat;
         lblScaling.Text = Strings.NpcEditor.scalingamount;
         lblAttackAnimation.Text = Strings.NpcEditor.attackanimation;
@@ -320,6 +326,7 @@ public partial class FrmNpc : EditorForm
             nudCritMultiplier.Value = (decimal)mEditorItem.CritMultiplier;
             nudScaling.Value = mEditorItem.Scaling;
             cmbDamageType.SelectedIndex = mEditorItem.DamageType;
+            cmbElement.SelectedIndex = mEditorItem.Element;
             cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
             cmbAttackAnimation.SelectedIndex = AnimationDescriptor.ListIndex(mEditorItem.AttackAnimationId) + 1;
             cmbAttackSpeedModifier.SelectedIndex = mEditorItem.AttackSpeedModifier;
@@ -619,6 +626,11 @@ public partial class FrmNpc : EditorForm
     private void cmbDamageType_SelectedIndexChanged(object sender, EventArgs e)
     {
         mEditorItem.DamageType = cmbDamageType.SelectedIndex;
+    }
+
+    private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        mEditorItem.Element = cmbElement.SelectedIndex;
     }
 
     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)

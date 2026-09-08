@@ -18,6 +18,12 @@ public partial class SpellCombatDescriptor
 
     public int DamageType { get; set; } = 1;
 
+    /// <summary>
+    /// Index into <see cref="Intersect.Enums.Element"/>. Ignored when
+    /// DamageType is True (true damage bypasses elemental resistance).
+    /// </summary>
+    public int Element { get; set; }
+
     public int HitRadius { get; set; }
 
     public bool Friendly { get; set; }

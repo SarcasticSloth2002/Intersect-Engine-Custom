@@ -191,6 +191,26 @@ public partial class NPCDescriptor : DatabaseObject<NPCDescriptor>, IFolderable
 
     public int DamageType { get; set; }
 
+    /// <summary>
+    /// Index into <see cref="Intersect.Enums.Element"/> for this NPC's basic
+    /// attack. Ignored when DamageType is True.
+    /// </summary>
+    public int Element { get; set; }
+
+    /// <summary>
+    /// Flat elemental resistance, indexed by <see cref="Intersect.Enums.Element"/>.
+    /// Sized/initialized the same way <see cref="Stats"/> is above.
+    /// </summary>
+    [NotMapped]
+    public int[] ElementalResistance { get; set; } = new int[Enum.GetValues<Element>().Length];
+
+    /// <summary>
+    /// Percentage elemental resistance (0-100, negative = weakness), indexed
+    /// by <see cref="Intersect.Enums.Element"/>.
+    /// </summary>
+    [NotMapped]
+    public int[] PercentageElementalResistance { get; set; } = new int[Enum.GetValues<Element>().Length];
+
     public int CritChance { get; set; }
 
     public double CritMultiplier { get; set; } = 1.5;

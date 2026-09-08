@@ -52,7 +52,8 @@ public partial class Formulas
         int scaling,
         double critMultiplier,
         Entity attacker,
-        Entity victim
+        Entity victim,
+        Element element = Element.None
     )
     {
         if (_formulas == null)
@@ -128,12 +129,27 @@ public partial class Formulas
             };
 
             var result = Convert.ToDouble(expression.Evaluate());
-            if (negate)
+
+            // Elemental resistance is layered on top of the Physical/Magic/True
+            // formula result, not baked into the formula itself. True damage
+            // bypasses this entirely, matching how it already bypasses
+            // Defense/MagicResist above.
+            if (damageType != DamageType.True && element != Element.None && !negate)
             {
-                result = -result;
+                var (flatResist, percentResist) = victim.GetElementalResistance(element);
+                result -= flatResist;
+                result *= 1 - percentResist / 100.0;
             }
 
-            return (long)Math.Round(result);
+            if (negate)
+            {
+                // Original call was healing (negative baseDamage) — resistance
+                // doesn't apply to healing, and we must not clamp this branch
+                // to zero, or all healing would break.
+                return (long)Math.Round(-result);
+            }
+
+            return (long)Math.Round(Math.Max(result, 0));
         }
         catch (Exception ex)
         {

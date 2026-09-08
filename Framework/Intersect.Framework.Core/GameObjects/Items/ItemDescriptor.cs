@@ -126,6 +126,13 @@ public partial class ItemDescriptor : DatabaseObject<ItemDescriptor>, IFolderabl
 
     public int DamageType { get; set; }
 
+    /// <summary>
+    /// Index into <see cref="Intersect.Enums.Element"/>. For weapons/damaging
+    /// items this is the element the damage carries; for armor pieces this
+    /// field is unused (armor instead reads <see cref="ElementalResistance"/>).
+    /// </summary>
+    public int Element { get; set; }
+
     public int AttackSpeedModifier { get; set; }
 
     public int AttackSpeedValue { get; set; }
@@ -307,6 +314,40 @@ public partial class ItemDescriptor : DatabaseObject<ItemDescriptor>, IFolderabl
     [NotMapped]
     public int[] PercentageStatsGiven { get; set; }
 
+    [Column("ElementalResistance")]
+    [JsonIgnore]
+    public string ElementalResistanceJson
+    {
+        get => DatabaseUtils.SaveIntArray(ElementalResistance, Enum.GetValues<Element>().Length);
+        set => ElementalResistance = DatabaseUtils.LoadIntArray(value, Enum.GetValues<Element>().Length);
+    }
+
+    /// <summary>
+    /// Flat elemental resistance granted while this item is equipped, indexed
+    /// by <see cref="Intersect.Enums.Element"/>. Subtracted from incoming
+    /// damage of that element before <see cref="PercentageElementalResistance"/>
+    /// is applied. Relevant for armor; leave zeroed on weapons.
+    /// </summary>
+    [NotMapped]
+    public int[] ElementalResistance { get; set; }
+
+    [Column("PercentageElementalResistance")]
+    [JsonIgnore]
+    public string PercentageElementalResistanceJson
+    {
+        get => DatabaseUtils.SaveIntArray(PercentageElementalResistance, Enum.GetValues<Element>().Length);
+        set => PercentageElementalResistance = DatabaseUtils.LoadIntArray(value, Enum.GetValues<Element>().Length);
+    }
+
+    /// <summary>
+    /// Percentage elemental resistance (0-100, or negative for a built-in
+    /// weakness), indexed by <see cref="Intersect.Enums.Element"/>. Applied to
+    /// whatever damage remains after <see cref="ElementalResistance"/>'s flat
+    /// reduction.
+    /// </summary>
+    [NotMapped]
+    public int[] PercentageElementalResistance { get; set; }
+
     [Column("UsageRequirements")]
     [JsonIgnore]
     public string JsonUsageRequirements
@@ -477,6 +518,8 @@ public partial class ItemDescriptor : DatabaseObject<ItemDescriptor>, IFolderabl
         Speed = 10; // Set to 10 by default.
         StatsGiven = new int[Enum.GetValues<Stat>().Length];
         PercentageStatsGiven = new int[Enum.GetValues<Stat>().Length];
+        ElementalResistance = new int[Enum.GetValues<Element>().Length];
+        PercentageElementalResistance = new int[Enum.GetValues<Element>().Length];
         VitalsGiven = new long[Enum.GetValues<Vital>().Length];
         VitalsRegen = new long[Enum.GetValues<Vital>().Length];
         PercentageVitalsGiven = new int[Enum.GetValues<Vital>().Length];

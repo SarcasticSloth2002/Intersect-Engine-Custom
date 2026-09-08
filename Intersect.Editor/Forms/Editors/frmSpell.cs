@@ -217,6 +217,12 @@ public partial class FrmSpell : EditorForm
             cmbDamageType.Items.Add(Strings.Combat.damagetypes[i]);
         }
 
+        cmbElement.Items.Clear();
+        for (var i = 0; i < Strings.Combat.elementtypes.Count; i++)
+        {
+            cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
+        }
+
         lblScalingStat.Text = Strings.SpellEditor.scalingstat;
         lblScaling.Text = Strings.SpellEditor.scalingamount;
 
@@ -370,6 +376,7 @@ public partial class FrmSpell : EditorForm
 
             chkFriendly.Checked = Convert.ToBoolean(mEditorItem.Combat.Friendly);
             cmbDamageType.SelectedIndex = mEditorItem.Combat.DamageType;
+            cmbElement.SelectedIndex = mEditorItem.Combat.Element;
             cmbScalingStat.SelectedIndex = mEditorItem.Combat.ScalingStat;
             nudScaling.Value = mEditorItem.Combat.Scaling;
             nudCritChance.Value = mEditorItem.Combat.CritChance;
@@ -707,6 +714,11 @@ public partial class FrmSpell : EditorForm
     private void cmbDamageType_SelectedIndexChanged(object sender, EventArgs e)
     {
         mEditorItem.Combat.DamageType = cmbDamageType.SelectedIndex;
+    }
+
+    private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        mEditorItem.Combat.Element = cmbElement.SelectedIndex;
     }
 
     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)

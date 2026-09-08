@@ -5548,6 +5548,28 @@ public partial class Player : Entity
         return true;
     }
 
+    public override (int Flat, int Percent) GetElementalResistance(Element element)
+    {
+        if (element == Element.None)
+        {
+            return (0, 0);
+        }
+
+        var flat = 0;
+        var percent = 0;
+
+        for (var i = 0; i < Options.Instance.Equipment.Slots.Count; i++)
+        {
+            if (TryGetEquippedItem(i, out var equipped) && equipped.Descriptor != null)
+            {
+                flat += equipped.Descriptor.ElementalResistance[(int)element];
+                percent += equipped.Descriptor.PercentageElementalResistance[(int)element];
+            }
+        }
+
+        return (flat, percent);
+    }
+
     public override bool IsAllyOf(Entity otherEntity)
     {
         switch (otherEntity)
@@ -5566,6 +5588,17 @@ public partial class Player : Entity
         if (Id == otherPlayer.Id)
         {
             return true;
+        }
+
+        // Faction/war state, when both sides have a FactionId, overrides
+        // everything below (including party/guild) — a declared war makes
+        // even party members hostile if they're on opposing factions.
+        // Reputation (personal standing, no active war) plugs in here too
+        // once you add PlayerFactionReputation — see FACTION_INTEGRATION.md.
+        var factionResult = ResolveFactionAlly(otherPlayer);
+        if (factionResult.HasValue)
+        {
+            return factionResult.Value;
         }
 
         if (InParty(otherPlayer))
@@ -5932,11 +5965,59 @@ public partial class Player : Entity
         return false;
     }
 
+    /// <summary>
+    /// True if the given equipment slot index is configured as locked
+    /// (Options.Instance.Equipment.LockedSlots) and currently has something
+    /// equipped. EquipItem and UnequipItem both check this before making a
+    /// change; SetLockedSlotItem bypasses it for intentional overrides
+    /// (a race-change potion, a quest reward, etc).
+    /// </summary>
+    public bool IsSlotLocked(int equipmentSlot)
+    {
+        if (equipmentSlot < 0 || equipmentSlot >= Options.Instance.Equipment.Slots.Count)
+        {
+            return false;
+        }
+
+        var slotName = Options.Instance.Equipment.Slots[equipmentSlot];
+        if (!Options.Instance.Equipment.LockedSlots.Contains(slotName))
+        {
+            return false;
+        }
+
+        return TryGetEquippedItem(equipmentSlot, out _);
+    }
+
+    /// <summary>
+    /// Bypasses the lock to force-set a locked slot (Race, Backstory) — call
+    /// this from an item's OnEquip event, an admin command, or a quest
+    /// reward, never from normal inventory-click equip flow.
+    /// </summary>
+    public void SetLockedSlotItem(ItemDescriptor itemDescriptor, int inventorySlot)
+    {
+        var equipmentSlot = itemDescriptor.EquipmentSlot;
+        if (TryGetEquippedItem(equipmentSlot, out var previous))
+        {
+            EnqueueStartCommonEvent(previous.Descriptor?.GetEventTrigger(ItemEventTrigger.OnUnequip));
+        }
+
+        SetEquipmentSlot(equipmentSlot, inventorySlot);
+        EnqueueStartCommonEvent(itemDescriptor.GetEventTrigger(ItemEventTrigger.OnEquip));
+        ProcessEquipmentUpdated(true);
+    }
+
     //Equipment
     public void EquipItem(ItemDescriptor itemDescriptor, int slot = -1, bool updateCooldown = false)
     {
         if (itemDescriptor == null || itemDescriptor.ItemType != ItemType.Equipment)
         {
+            return;
+        }
+
+        if (IsSlotLocked(itemDescriptor.EquipmentSlot))
+        {
+            // Locked slot already occupied — silently refuse. If you want
+            // player-facing feedback, send a chat message here.
             return;
         }
 
@@ -6008,6 +6089,11 @@ public partial class Player : Entity
     public void UnequipItem(int equipmentSlot, bool sendUpdate = true)
     {
         if (equipmentSlot < 0 || equipmentSlot > Equipment.Length)
+        {
+            return;
+        }
+
+        if (IsSlotLocked(equipmentSlot))
         {
             return;
         }

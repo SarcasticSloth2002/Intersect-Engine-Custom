@@ -1,0 +1,840 @@
+diff -ruN a/Framework/Intersect.Framework.Core/Config/EquipmentOptions.cs b/Framework/Intersect.Framework.Core/Config/EquipmentOptions.cs
+--- a/Framework/Intersect.Framework.Core/Config/EquipmentOptions.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/Config/EquipmentOptions.cs	2026-09-07 23:17:19.899963964 +0000
+@@ -15,6 +15,20 @@
+         "Weapon",
+         "Shield",
+         "Boots",
++        "Race",
++        "Backstory",
++    ];
++
++    /// <summary>
++    /// Slot names that, once something is equipped there, cannot be
++    /// unequipped or swapped through normal means (Player.EquipItem/
++    /// UnequipItem both check this). Use Player.SetLockedSlotItem to bypass
++    /// intentionally (a race-change potion, a quest reward, etc).
++    /// </summary>
++    public List<string> LockedSlots { get; set; } =
++    [
++        "Race",
++        "Backstory",
+     ];
+ 
+     public List<string> ToolTypes { get; set; } =
+diff -ruN a/Framework/Intersect.Framework.Core/Config/PartyOptions.cs b/Framework/Intersect.Framework.Core/Config/PartyOptions.cs
+--- a/Framework/Intersect.Framework.Core/Config/PartyOptions.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/Config/PartyOptions.cs	2026-09-07 23:17:37.187372912 +0000
+@@ -5,7 +5,7 @@
+     /// <summary>
+     /// Defines the maximum amount of members a party can have.
+     /// </summary>
+-    public int MaximumMembers{ get; set; } = 4;
++    public int MaximumMembers{ get; set; } = 5;
+ 
+     public int SharedXpRange{ get; set; } = 40;
+ 
+diff -ruN a/Framework/Intersect.Framework.Core/GameObjects/Items/ItemDescriptor.cs b/Framework/Intersect.Framework.Core/GameObjects/Items/ItemDescriptor.cs
+--- a/Framework/Intersect.Framework.Core/GameObjects/Items/ItemDescriptor.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/GameObjects/Items/ItemDescriptor.cs	2026-09-07 23:14:18.129197492 +0000
+@@ -126,6 +126,13 @@
+ 
+     public int DamageType { get; set; }
+ 
++    /// <summary>
++    /// Index into <see cref="Intersect.Enums.Element"/>. For weapons/damaging
++    /// items this is the element the damage carries; for armor pieces this
++    /// field is unused (armor instead reads <see cref="ElementalResistance"/>).
++    /// </summary>
++    public int Element { get; set; }
++
+     public int AttackSpeedModifier { get; set; }
+ 
+     public int AttackSpeedValue { get; set; }
+@@ -307,6 +314,40 @@
+     [NotMapped]
+     public int[] PercentageStatsGiven { get; set; }
+ 
++    [Column("ElementalResistance")]
++    [JsonIgnore]
++    public string ElementalResistanceJson
++    {
++        get => DatabaseUtils.SaveIntArray(ElementalResistance, Enum.GetValues<Element>().Length);
++        set => ElementalResistance = DatabaseUtils.LoadIntArray(value, Enum.GetValues<Element>().Length);
++    }
++
++    /// <summary>
++    /// Flat elemental resistance granted while this item is equipped, indexed
++    /// by <see cref="Intersect.Enums.Element"/>. Subtracted from incoming
++    /// damage of that element before <see cref="PercentageElementalResistance"/>
++    /// is applied. Relevant for armor; leave zeroed on weapons.
++    /// </summary>
++    [NotMapped]
++    public int[] ElementalResistance { get; set; }
++
++    [Column("PercentageElementalResistance")]
++    [JsonIgnore]
++    public string PercentageElementalResistanceJson
++    {
++        get => DatabaseUtils.SaveIntArray(PercentageElementalResistance, Enum.GetValues<Element>().Length);
++        set => PercentageElementalResistance = DatabaseUtils.LoadIntArray(value, Enum.GetValues<Element>().Length);
++    }
++
++    /// <summary>
++    /// Percentage elemental resistance (0-100, or negative for a built-in
++    /// weakness), indexed by <see cref="Intersect.Enums.Element"/>. Applied to
++    /// whatever damage remains after <see cref="ElementalResistance"/>'s flat
++    /// reduction.
++    /// </summary>
++    [NotMapped]
++    public int[] PercentageElementalResistance { get; set; }
++
+     [Column("UsageRequirements")]
+     [JsonIgnore]
+     public string JsonUsageRequirements
+@@ -477,6 +518,8 @@
+         Speed = 10; // Set to 10 by default.
+         StatsGiven = new int[Enum.GetValues<Stat>().Length];
+         PercentageStatsGiven = new int[Enum.GetValues<Stat>().Length];
++        ElementalResistance = new int[Enum.GetValues<Element>().Length];
++        PercentageElementalResistance = new int[Enum.GetValues<Element>().Length];
+         VitalsGiven = new long[Enum.GetValues<Vital>().Length];
+         VitalsRegen = new long[Enum.GetValues<Vital>().Length];
+         PercentageVitalsGiven = new int[Enum.GetValues<Vital>().Length];
+diff -ruN a/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs b/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs
+--- a/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs	2026-09-07 23:14:40.635663862 +0000
+@@ -191,6 +191,26 @@
+ 
+     public int DamageType { get; set; }
+ 
++    /// <summary>
++    /// Index into <see cref="Intersect.Enums.Element"/> for this NPC's basic
++    /// attack. Ignored when DamageType is True.
++    /// </summary>
++    public int Element { get; set; }
++
++    /// <summary>
++    /// Flat elemental resistance, indexed by <see cref="Intersect.Enums.Element"/>.
++    /// Sized/initialized the same way <see cref="Stats"/> is above.
++    /// </summary>
++    [NotMapped]
++    public int[] ElementalResistance { get; set; } = new int[Enum.GetValues<Element>().Length];
++
++    /// <summary>
++    /// Percentage elemental resistance (0-100, negative = weakness), indexed
++    /// by <see cref="Intersect.Enums.Element"/>.
++    /// </summary>
++    [NotMapped]
++    public int[] PercentageElementalResistance { get; set; } = new int[Enum.GetValues<Element>().Length];
++
+     public int CritChance { get; set; }
+ 
+     public double CritMultiplier { get; set; } = 1.5;
+diff -ruN a/Framework/Intersect.Framework.Core/GameObjects/Spells/SpellCombatDescriptor.cs b/Framework/Intersect.Framework.Core/GameObjects/Spells/SpellCombatDescriptor.cs
+--- a/Framework/Intersect.Framework.Core/GameObjects/Spells/SpellCombatDescriptor.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/GameObjects/Spells/SpellCombatDescriptor.cs	2026-09-07 23:14:23.602755697 +0000
+@@ -18,6 +18,12 @@
+ 
+     public int DamageType { get; set; } = 1;
+ 
++    /// <summary>
++    /// Index into <see cref="Intersect.Enums.Element"/>. Ignored when
++    /// DamageType is True (true damage bypasses elemental resistance).
++    /// </summary>
++    public int Element { get; set; }
++
+     public int HitRadius { get; set; }
+ 
+     public bool Friendly { get; set; }
+diff -ruN "a/Intersect (Core)/Enums/Element.cs" "b/Intersect (Core)/Enums/Element.cs"
+--- "a/Intersect (Core)/Enums/Element.cs"	1970-01-01 00:00:00.000000000 +0000
++++ "b/Intersect (Core)/Enums/Element.cs"	2026-09-07 23:14:01.776290710 +0000
+@@ -0,0 +1,18 @@
++namespace Intersect.Enums;
++
++public enum Element
++{
++    None = 0,
++
++    Fire,
++
++    Frost,
++
++    Storm,
++
++    Nature,
++
++    Holy,
++
++    Shadow,
++}
+diff -ruN a/Intersect.Editor/Forms/Editors/frmItem.cs b/Intersect.Editor/Forms/Editors/frmItem.cs
+--- a/Intersect.Editor/Forms/Editors/frmItem.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Editor/Forms/Editors/frmItem.cs	2026-09-07 23:18:43.124077758 +0000
+@@ -255,6 +255,13 @@
+             cmbDamageType.Items.Add(Strings.Combat.damagetypes[i]);
+         }
+ 
++        lblElement.Text = Strings.ItemEditor.elementtype;
++        cmbElement.Items.Clear();
++        for (var i = 0; i < Strings.Combat.elementtypes.Count; i++)
++        {
++            cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
++        }
++
+         lblScalingStat.Text = Strings.ItemEditor.scalingstat;
+         lblScalingAmount.Text = Strings.ItemEditor.scalingamount;
+         lblAttackAnimation.Text = Strings.ItemEditor.attackanimation;
+@@ -441,6 +448,7 @@
+             }
+ 
+             cmbDamageType.SelectedIndex = mEditorItem.DamageType;
++            cmbElement.SelectedIndex = mEditorItem.Element;
+             cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
+ 
+             //External References
+@@ -789,6 +797,11 @@
+         mEditorItem.DamageType = cmbDamageType.SelectedIndex;
+     }
+ 
++    private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
++    {
++        mEditorItem.Element = cmbElement.SelectedIndex;
++    }
++
+     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)
+     {
+         mEditorItem.ScalingStat = cmbScalingStat.SelectedIndex;
+diff -ruN a/Intersect.Editor/Forms/Editors/frmNpc.cs b/Intersect.Editor/Forms/Editors/frmNpc.cs
+--- a/Intersect.Editor/Forms/Editors/frmNpc.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Editor/Forms/Editors/frmNpc.cs	2026-09-07 23:19:02.443686522 +0000
+@@ -240,6 +240,12 @@
+             cmbDamageType.Items.Add(Strings.Combat.damagetypes[i]);
+         }
+ 
++        cmbElement.Items.Clear();
++        for (var i = 0; i < Strings.Combat.elementtypes.Count; i++)
++        {
++            cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
++        }
++
+         lblScalingStat.Text = Strings.NpcEditor.scalingstat;
+         lblScaling.Text = Strings.NpcEditor.scalingamount;
+         lblAttackAnimation.Text = Strings.NpcEditor.attackanimation;
+@@ -320,6 +326,7 @@
+             nudCritMultiplier.Value = (decimal)mEditorItem.CritMultiplier;
+             nudScaling.Value = mEditorItem.Scaling;
+             cmbDamageType.SelectedIndex = mEditorItem.DamageType;
++            cmbElement.SelectedIndex = mEditorItem.Element;
+             cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
+             cmbAttackAnimation.SelectedIndex = AnimationDescriptor.ListIndex(mEditorItem.AttackAnimationId) + 1;
+             cmbAttackSpeedModifier.SelectedIndex = mEditorItem.AttackSpeedModifier;
+@@ -621,6 +628,11 @@
+         mEditorItem.DamageType = cmbDamageType.SelectedIndex;
+     }
+ 
++    private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
++    {
++        mEditorItem.Element = cmbElement.SelectedIndex;
++    }
++
+     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)
+     {
+         mEditorItem.ScalingStat = cmbScalingStat.SelectedIndex;
+diff -ruN a/Intersect.Editor/Forms/Editors/frmSpell.cs b/Intersect.Editor/Forms/Editors/frmSpell.cs
+--- a/Intersect.Editor/Forms/Editors/frmSpell.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Editor/Forms/Editors/frmSpell.cs	2026-09-07 23:19:02.443382446 +0000
+@@ -217,6 +217,12 @@
+             cmbDamageType.Items.Add(Strings.Combat.damagetypes[i]);
+         }
+ 
++        cmbElement.Items.Clear();
++        for (var i = 0; i < Strings.Combat.elementtypes.Count; i++)
++        {
++            cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
++        }
++
+         lblScalingStat.Text = Strings.SpellEditor.scalingstat;
+         lblScaling.Text = Strings.SpellEditor.scalingamount;
+ 
+@@ -370,6 +376,7 @@
+ 
+             chkFriendly.Checked = Convert.ToBoolean(mEditorItem.Combat.Friendly);
+             cmbDamageType.SelectedIndex = mEditorItem.Combat.DamageType;
++            cmbElement.SelectedIndex = mEditorItem.Combat.Element;
+             cmbScalingStat.SelectedIndex = mEditorItem.Combat.ScalingStat;
+             nudScaling.Value = mEditorItem.Combat.Scaling;
+             nudCritChance.Value = mEditorItem.Combat.CritChance;
+@@ -709,6 +716,11 @@
+         mEditorItem.Combat.DamageType = cmbDamageType.SelectedIndex;
+     }
+ 
++    private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
++    {
++        mEditorItem.Combat.Element = cmbElement.SelectedIndex;
++    }
++
+     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)
+     {
+         mEditorItem.Combat.ScalingStat = cmbScalingStat.SelectedIndex;
+diff -ruN a/Intersect.Editor/Localization/Strings.cs b/Intersect.Editor/Localization/Strings.cs
+--- a/Intersect.Editor/Localization/Strings.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Editor/Localization/Strings.cs	2026-09-07 23:17:59.567294200 +0000
+@@ -1109,6 +1109,8 @@
+ 
+         public static LocalizedString damagetype = @"Damage Type:";
+ 
++        public static LocalizedString elementtype = @"Element:";
++
+         public static LocalizedString delete = @"Delete Class";
+ 
+         public static LocalizedString deleteprompt =
+@@ -1276,6 +1278,17 @@
+             {2, @"True"},
+         };
+ 
++        public static Dictionary<int, LocalizedString> elementtypes = new Dictionary<int, LocalizedString>
++        {
++            {0, @"None"},
++            {1, @"Fire"},
++            {2, @"Frost"},
++            {3, @"Storm"},
++            {4, @"Nature"},
++            {5, @"Holy"},
++            {6, @"Shadow"},
++        };
++
+         public static LocalizedString exp = @"Experience";
+ 
+         public static Dictionary<int, LocalizedString> stats = new Dictionary<int, LocalizedString>
+@@ -3793,6 +3806,8 @@
+ 
+         public static LocalizedString damagetype = @"Damage Type:";
+ 
++        public static LocalizedString elementtype = @"Element:";
++
+         public static LocalizedString defensebonus = @"Defense:";
+ 
+         public static LocalizedString delete = @"Delete Item";
+@@ -4508,6 +4523,8 @@
+ 
+         public static LocalizedString damagetype = @"Damage Type:";
+ 
++        public static LocalizedString elementtype = @"Element:";
++
+         public static LocalizedString defense = @"Defense:";
+ 
+         public static LocalizedString delete = @"Delete Npc";
+@@ -5278,6 +5295,8 @@
+ 
+         public static LocalizedString damagetype = @"Damage Type:";
+ 
++        public static LocalizedString elementtype = @"Element:";
++
+         public static LocalizedString dash = @"Dash";
+ 
+         public static LocalizedString dashcollisions = @"Ignore Collision:";
+diff -ruN a/Intersect.Server.Core/Entities/Entity.cs b/Intersect.Server.Core/Entities/Entity.cs
+--- a/Intersect.Server.Core/Entities/Entity.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Server.Core/Entities/Entity.cs	2026-09-07 23:15:26.380799929 +0000
+@@ -1596,11 +1596,58 @@
+         return stats;
+     }
+ 
++    /// <summary>
++    /// Null = unaffiliated, uses whatever legacy rules the subclass already
++    /// has (Player party/guild, Npc PlayerFriendConditions, etc). Set via the
++    /// Race/Backstory locked equipment slots or directly for Npcs tied to a
++    /// faction's garrison.
++    /// </summary>
++    public Guid? FactionId { get; set; }
++
+     public virtual bool IsAllyOf(Entity otherEntity)
+     {
+         return this == otherEntity;
+     }
+ 
++    /// <summary>
++    /// Faction resolution shared by Player and Npc's IsAllyOf overrides.
++    /// Order: same faction always allied; an active FactionWar is a hard
++    /// override (hostile regardless of reputation); anything else falls
++    /// through to the subclass's existing legacy rules, passed in as
++    /// legacyFallback so this never changes behavior for entities with no
++    /// FactionId set.
++    /// </summary>
++    protected bool? ResolveFactionAlly(Entity other)
++    {
++        if (FactionId is null || other.FactionId is null)
++        {
++            return null; // no opinion — let the caller's legacy rules decide
++        }
++
++        if (FactionId == other.FactionId)
++        {
++            return true;
++        }
++
++        if (Factions.FactionManager.AreAtWar(FactionId.Value, other.FactionId.Value))
++        {
++            return false;
++        }
++
++        return null; // no active war — fall through to reputation/legacy rules
++    }
++
++    /// <summary>
++    /// Returns (flat, percent) elemental resistance for the given element.
++    /// Default is no resistance; Player sums equipped gear, Npc reads its
++    /// descriptor. Consulted by Formulas.CalculateDamage — see there for how
++    /// flat/percent combine and why True damage never reaches this.
++    /// </summary>
++    public virtual (int Flat, int Percent) GetElementalResistance(Element element)
++    {
++        return (0, 0);
++    }
++
+     //Attacking with projectile
+     public virtual void TryAttack(Entity target,
+         ProjectileDescriptor projectile,
+diff -ruN a/Intersect.Server.Core/Entities/Factions/Faction.cs b/Intersect.Server.Core/Entities/Factions/Faction.cs
+--- a/Intersect.Server.Core/Entities/Factions/Faction.cs	1970-01-01 00:00:00.000000000 +0000
++++ b/Intersect.Server.Core/Entities/Factions/Faction.cs	2026-09-07 23:16:01.424297822 +0000
+@@ -0,0 +1,50 @@
++using System;
++using System.Collections.Generic;
++
++namespace Intersect.Server.Entities.Factions;
++
++public class Faction
++{
++    public Guid Id { get; set; } = Guid.NewGuid();
++
++    public string Name { get; set; } = string.Empty;
++
++    /// <summary>
++    /// PlayerId of the current leader. Only this player may DeclareWar on
++    /// this faction's behalf (checked in FactionManager.DeclareWar).
++    /// </summary>
++    public Guid? LeaderPlayerId { get; set; }
++
++    public DateTime? LastWarDeclarationTime { get; set; }
++
++    public static readonly TimeSpan WarDeclarationCooldown = TimeSpan.FromHours(1);
++}
++
++/// <summary>
++/// A single active war between two factions — symmetric, no attacker/defender
++/// distinction. Existence of a row (either direction) is what
++/// Entity.ResolveFactionAlly checks via FactionManager.AreAtWar.
++/// </summary>
++public class FactionWar
++{
++    public Guid Id { get; set; } = Guid.NewGuid();
++
++    public Guid FactionAId { get; set; }
++
++    public Guid FactionBId { get; set; }
++
++    public DateTime DeclaredAt { get; set; } = DateTime.UtcNow;
++
++    public bool IsBetween(Guid factionA, Guid factionB) =>
++        (FactionAId == factionA && FactionBId == factionB) ||
++        (FactionAId == factionB && FactionBId == factionA);
++}
++
++public enum DeclareWarResult
++{
++    Success,
++    NotLeader,
++    OnCooldown,
++    AlreadyAtWar,
++    UnknownFaction
++}
+diff -ruN a/Intersect.Server.Core/Entities/Factions/FactionManager.cs b/Intersect.Server.Core/Entities/Factions/FactionManager.cs
+--- a/Intersect.Server.Core/Entities/Factions/FactionManager.cs	1970-01-01 00:00:00.000000000 +0000
++++ b/Intersect.Server.Core/Entities/Factions/FactionManager.cs	2026-09-07 23:17:15.572302230 +0000
+@@ -0,0 +1,73 @@
++using System;
++using System.Collections.Generic;
++using System.Linq;
++
++namespace Intersect.Server.Entities.Factions;
++
++/// <summary>
++/// Registry of factions and active wars. Entity.ResolveFactionAlly calls
++/// AreAtWar on every hostility check, so keep that method cheap (in-memory
++/// list scan, no DB hit) — the TODOs below are where you wire up actual
++/// persistence, loaded once at server start into these in-memory
++/// collections.
++/// </summary>
++public static class FactionManager
++{
++    private static readonly Dictionary<Guid, Faction> Factions = new();
++    private static readonly List<FactionWar> ActiveWars = new();
++
++    public static void Register(Faction faction) => Factions[faction.Id] = faction;
++
++    public static Faction? Get(Guid factionId) =>
++        Factions.TryGetValue(factionId, out var f) ? f : null;
++
++    public static bool AreAtWar(Guid factionA, Guid factionB) =>
++        ActiveWars.Any(w => w.IsBetween(factionA, factionB));
++
++    /// <summary>
++    /// Declares war on behalf of a faction leader. Enforces leadership,
++    /// per-faction cooldown, and blocks duplicate wars. On Success, the
++    /// caller (see DeclareWarEventCommand) is responsible for refreshing
++    /// affected maps' NPCs — kept separate so this class has no dependency
++    /// on map/instance code.
++    /// </summary>
++    public static DeclareWarResult DeclareWar(Guid invokingPlayerId, Guid declaringFactionId, Guid targetFactionId)
++    {
++        if (!Factions.TryGetValue(declaringFactionId, out var declaring) ||
++            !Factions.ContainsKey(targetFactionId))
++        {
++            return DeclareWarResult.UnknownFaction;
++        }
++
++        if (declaring.LeaderPlayerId != invokingPlayerId)
++        {
++            return DeclareWarResult.NotLeader;
++        }
++
++        if (declaring.LastWarDeclarationTime.HasValue &&
++            DateTime.UtcNow - declaring.LastWarDeclarationTime.Value < Faction.WarDeclarationCooldown)
++        {
++            return DeclareWarResult.OnCooldown;
++        }
++
++        if (AreAtWar(declaringFactionId, targetFactionId))
++        {
++            return DeclareWarResult.AlreadyAtWar;
++        }
++
++        ActiveWars.Add(new FactionWar { FactionAId = declaringFactionId, FactionBId = targetFactionId });
++        declaring.LastWarDeclarationTime = DateTime.UtcNow;
++
++        // TODO: persist the new FactionWar row and declaring.LastWarDeclarationTime
++        // to your DbContext here.
++
++        return DeclareWarResult.Success;
++    }
++
++    public static bool EndWar(Guid factionA, Guid factionB)
++    {
++        var removed = ActiveWars.RemoveAll(w => w.IsBetween(factionA, factionB));
++        // TODO: persist removal.
++        return removed > 0;
++    }
++}
+diff -ruN a/Intersect.Server.Core/Entities/Npc.cs b/Intersect.Server.Core/Entities/Npc.cs
+--- a/Intersect.Server.Core/Entities/Npc.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Server.Core/Entities/Npc.cs	2026-09-07 23:15:42.327540733 +0000
+@@ -1365,8 +1365,27 @@
+         return false;
+     }
+ 
++    public override (int Flat, int Percent) GetElementalResistance(Element element)
++    {
++        if (element == Element.None)
++        {
++            return (0, 0);
++        }
++
++        return (Descriptor.ElementalResistance[(int)element], Descriptor.PercentageElementalResistance[(int)element]);
++    }
++
+     public override bool IsAllyOf(Entity otherEntity)
+     {
++        // Same precedence as Player.IsAllyOf(Player): a faction war is a hard
++        // override checked before any of the existing Npc-vs-Npc/PlayerFriend
++        // rules below, for both Npc-vs-Npc and Npc-vs-Player.
++        var factionResult = ResolveFactionAlly(otherEntity);
++        if (factionResult.HasValue)
++        {
++            return factionResult.Value;
++        }
++
+         switch (otherEntity)
+         {
+             case Npc otherNpc:
+diff -ruN a/Intersect.Server.Core/Entities/Player.cs b/Intersect.Server.Core/Entities/Player.cs
+--- a/Intersect.Server.Core/Entities/Player.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Server.Core/Entities/Player.cs	2026-09-07 23:17:33.816309637 +0000
+@@ -5548,6 +5548,28 @@
+         return true;
+     }
+ 
++    public override (int Flat, int Percent) GetElementalResistance(Element element)
++    {
++        if (element == Element.None)
++        {
++            return (0, 0);
++        }
++
++        var flat = 0;
++        var percent = 0;
++
++        for (var i = 0; i < Options.Instance.Equipment.Slots.Count; i++)
++        {
++            if (TryGetEquippedItem(i, out var equipped) && equipped.Descriptor != null)
++            {
++                flat += equipped.Descriptor.ElementalResistance[(int)element];
++                percent += equipped.Descriptor.PercentageElementalResistance[(int)element];
++            }
++        }
++
++        return (flat, percent);
++    }
++
+     public override bool IsAllyOf(Entity otherEntity)
+     {
+         switch (otherEntity)
+@@ -5568,6 +5590,17 @@
+             return true;
+         }
+ 
++        // Faction/war state, when both sides have a FactionId, overrides
++        // everything below (including party/guild) — a declared war makes
++        // even party members hostile if they're on opposing factions.
++        // Reputation (personal standing, no active war) plugs in here too
++        // once you add PlayerFactionReputation — see FACTION_INTEGRATION.md.
++        var factionResult = ResolveFactionAlly(otherPlayer);
++        if (factionResult.HasValue)
++        {
++            return factionResult.Value;
++        }
++
+         if (InParty(otherPlayer))
+         {
+             return true;
+@@ -5932,6 +5965,47 @@
+         return false;
+     }
+ 
++    /// <summary>
++    /// True if the given equipment slot index is configured as locked
++    /// (Options.Instance.Equipment.LockedSlots) and currently has something
++    /// equipped. EquipItem and UnequipItem both check this before making a
++    /// change; SetLockedSlotItem bypasses it for intentional overrides
++    /// (a race-change potion, a quest reward, etc).
++    /// </summary>
++    public bool IsSlotLocked(int equipmentSlot)
++    {
++        if (equipmentSlot < 0 || equipmentSlot >= Options.Instance.Equipment.Slots.Count)
++        {
++            return false;
++        }
++
++        var slotName = Options.Instance.Equipment.Slots[equipmentSlot];
++        if (!Options.Instance.Equipment.LockedSlots.Contains(slotName))
++        {
++            return false;
++        }
++
++        return TryGetEquippedItem(equipmentSlot, out _);
++    }
++
++    /// <summary>
++    /// Bypasses the lock to force-set a locked slot (Race, Backstory) — call
++    /// this from an item's OnEquip event, an admin command, or a quest
++    /// reward, never from normal inventory-click equip flow.
++    /// </summary>
++    public void SetLockedSlotItem(ItemDescriptor itemDescriptor, int inventorySlot)
++    {
++        var equipmentSlot = itemDescriptor.EquipmentSlot;
++        if (TryGetEquippedItem(equipmentSlot, out var previous))
++        {
++            EnqueueStartCommonEvent(previous.Descriptor?.GetEventTrigger(ItemEventTrigger.OnUnequip));
++        }
++
++        SetEquipmentSlot(equipmentSlot, inventorySlot);
++        EnqueueStartCommonEvent(itemDescriptor.GetEventTrigger(ItemEventTrigger.OnEquip));
++        ProcessEquipmentUpdated(true);
++    }
++
+     //Equipment
+     public void EquipItem(ItemDescriptor itemDescriptor, int slot = -1, bool updateCooldown = false)
+     {
+@@ -5940,6 +6014,13 @@
+             return;
+         }
+ 
++        if (IsSlotLocked(itemDescriptor.EquipmentSlot))
++        {
++            // Locked slot already occupied — silently refuse. If you want
++            // player-facing feedback, send a chat message here.
++            return;
++        }
++
+         // Find the appropriate slot if not passed in
+         if (slot == -1)
+         {
+@@ -6011,6 +6092,11 @@
+         {
+             return;
+         }
++
++        if (IsSlotLocked(equipmentSlot))
++        {
++            return;
++        }
+ 
+         if (TryGetEquippedItem(equipmentSlot, out var prevEquipped))
+         {
+diff -ruN a/Intersect.Server.Core/General/Formulas.cs b/Intersect.Server.Core/General/Formulas.cs
+--- a/Intersect.Server.Core/General/Formulas.cs	2026-07-16 07:38:17.000000000 +0000
++++ b/Intersect.Server.Core/General/Formulas.cs	2026-09-07 23:15:01.716681309 +0000
+@@ -52,7 +52,8 @@
+         int scaling,
+         double critMultiplier,
+         Entity attacker,
+-        Entity victim
++        Entity victim,
++        Element element = Element.None
+     )
+     {
+         if (_formulas == null)
+@@ -128,12 +129,27 @@
+             };
+ 
+             var result = Convert.ToDouble(expression.Evaluate());
++
++            // Elemental resistance is layered on top of the Physical/Magic/True
++            // formula result, not baked into the formula itself. True damage
++            // bypasses this entirely, matching how it already bypasses
++            // Defense/MagicResist above.
++            if (damageType != DamageType.True && element != Element.None && !negate)
++            {
++                var (flatResist, percentResist) = victim.GetElementalResistance(element);
++                result -= flatResist;
++                result *= 1 - percentResist / 100.0;
++            }
++
+             if (negate)
+             {
+-                result = -result;
++                // Original call was healing (negative baseDamage) — resistance
++                // doesn't apply to healing, and we must not clamp this branch
++                // to zero, or all healing would break.
++                return (long)Math.Round(-result);
+             }
+ 
+-            return (long)Math.Round(result);
++            return (long)Math.Round(Math.Max(result, 0));
+         }
+         catch (Exception ex)
+         {
+diff -ruN a/PATCH_SUMMARY.md b/PATCH_SUMMARY.md
+--- a/PATCH_SUMMARY.md	1970-01-01 00:00:00.000000000 +0000
++++ b/PATCH_SUMMARY.md	2026-09-07 23:19:39.280310772 +0000
+@@ -0,0 +1,108 @@
++# Patch Summary — Faction/Race/Damage-Typing/Party Changes
++
++This zip is your uploaded Intersect-Engine source with the following changes
++already applied and building on the exact code paths we traced through
++together. Everything below is a real edit to a real file — nothing here is
++a generic sketch.
++
++## 1. Damage Typing (Element system)
++
++- **New:** `Intersect (Core)/Enums/Element.cs` — `None, Fire, Frost, Storm,
++  Nature, Holy, Shadow`, mirroring the existing `DamageType` enum exactly.
++- **`ItemDescriptor.cs`**: added `Element` field (parallel to `DamageType`),
++  plus `ElementalResistance`/`PercentageElementalResistance` int arrays,
++  mirroring the existing `StatsGiven`/`PercentageStatsGiven` DB-column pattern
++  precisely (same `DatabaseUtils.SaveIntArray`/`LoadIntArray` convention, same
++  `[NotMapped]`/`[Column]` attributes). Both arrays are initialized alongside
++  `StatsGiven` in the constructor.
++- **`SpellCombatDescriptor.cs`**: added `Element` field next to `DamageType`.
++- **`NPCDescriptor.cs`**: added `Element` field plus the same two resistance
++  arrays. **Check this one**: unlike `ItemDescriptor`, `NPCDescriptor`'s
++  existing `Stats` array uses a custom backing field (`_stats`) rather than
++  the `DatabaseUtils`/`[Column]` pattern — I added the new arrays as plain
++  `[NotMapped]` properties, but you should confirm they actually persist the
++  same way `Stats` does (there may be a JSON-blob-for-the-whole-object
++  mechanism elsewhere that `[NotMapped]` here doesn't hook into). If NPC
++  resistances aren't surviving a server restart, this is where to look.
++- **`Formulas.CalculateDamage`** (`Intersect.Server.Core/General/Formulas.cs`):
++  added an `Element element = Element.None` parameter. After the existing
++  Physical/Magic/True formula evaluates, flat-then-percent elemental
++  resistance is applied on top — skipped entirely for `True` damage and for
++  negative baseDamage (healing), so healing formulas are unaffected.
++- **`Entity.GetElementalResistance(Element)`** (virtual, in `Entity.cs`):
++  new method — `Npc` reads its descriptor directly; `Player` sums across
++  every equipped item's resistance arrays (so Race/Backstory gear
++  contributes automatically, no special-casing needed).
++- **Editor UI**: `frmItem.cs`, `frmSpell.cs`, `frmNpc.cs` all now populate,
++  load, and save a `cmbElement` combo the same way `cmbDamageType` already
++  works — reads/writes `mEditorItem.Element` (or `mEditorItem.Combat.Element`
++  for spells). Matching `Strings.Combat.elementtypes` localization dictionary
++  and an `elementtype` label string were added to
++  `Intersect.Editor/Localization/Strings.cs` for all four editors
++  (Class/Item/Npc/Spell).
++- **NOT DONE — needs Visual Studio**: the actual visible `cmbElement`/
++  `lblElement` controls in each form's `.Designer.cs` file. These editors use
++  fixed pixel coordinates (e.g. `cmbDamageType.Location = new Point(18,
++  175)`), and the next control down (`cmbScalingStat` etc.) sits only ~4px
++  below — there's no room to insert a new row without shifting every
++  subsequent control down by ~24-40px. That's a cascade I can't verify blind
++  against thousands of lines of coordinates. **Open each form in the Visual
++  Studio designer, drag a new ComboBox + Label into the group box, name them
++  `cmbElement`/`lblElement`, and wire `SelectedIndexChanged` to the handler
++  already written in the `.cs` file** (`cmbElement_SelectedIndexChanged`
++  already exists in all three — the designer just needs to hook the event).
++
++## 2. Faction System
++
++- **`Entity.cs`**: added `FactionId` (nullable Guid) and
++  `ResolveFactionAlly(Entity)` — returns `true` for same faction, `false` for
++  an active war (hard override), or `null` ("no opinion, use your existing
++  rules"). This is a pure addition — any entity with `FactionId == null`
++  behaves exactly as before.
++- **`Player.IsAllyOf(Player)`** and **`Npc.IsAllyOf(Entity)`**: both now call
++  `ResolveFactionAlly` first and only fall through to the existing
++  party/guild/`PlayerFriendConditions` logic when it returns `null`.
++- **New:** `Intersect.Server.Core/Entities/Factions/Faction.cs` (`Faction`,
++  `FactionWar`, `DeclareWarResult`) and `FactionManager.cs` (in-memory
++  registry, `AreAtWar`, `DeclareWar` with leader + cooldown checks).
++- **NOT DONE**: persistence (the two `// TODO` comments in
++  `FactionManager.DeclareWar`/`EndWar`) — wire those to your DbContext when
++  you add `DbSet<Faction>`/`DbSet<FactionWar>`. Also not done: the
++  `DeclareWarEventCommand` registration into your event-command
++  enum/switch, the map-NPC-refresh trigger on war declaration, territory
++  ownership via Global Variables, and `PlayerFactionReputation` — all
++  designed in our conversation but not yet matched against real files in
++  this repo (send me your event-command switch file and I'll finish this
++  the same way).
++
++## 3. Race/Backstory equipment slots
++
++- **`EquipmentOptions.cs`**: added `"Race"` and `"Backstory"` to the default
++  `Slots` list, plus a new `LockedSlots` list (`["Race", "Backstory"]`).
++- **`Player.cs`**: new `IsSlotLocked(int)` (checks `LockedSlots` config +
++  whether something's already equipped there) and `SetLockedSlotItem(...)`
++  (bypasses the lock for intentional changes — call this from a race-change
++  potion's script/event, not from normal inventory equip). `EquipItem` and
++  both `UnequipItem` overloads now check `IsSlotLocked` before proceeding.
++
++## 4. Party size
++
++- **`PartyOptions.cs`**: `MaximumMembers` default changed `4` → `5`.
++  `PartyWindow.cs` already loops off this value for all its C# control
++  creation — confirmed no other code change needed there.
++- **NOT DONE**: the actual pixel layout for the party HUD lives in a JSON UI
++  resource file that ships separately from this source repo (not present
++  here). You'll need to add entries for member index 4 following the exact
++  naming convention `PartyWindow.cs` already uses: `MemberName4`,
++  `HealthBarContainer4`, `HealthLabel4`, `HealthValue4`, `ManaBarContainer4`,
++  `ManaLabel4`, `ManaValue4`, `KickButton4` — plus resize the window itself
++  to fit a 5th row.
++
++## What to send next
++
++- Your event-command enum/switch file → I'll finish Declare War, territory
++  ownership, and reputation.
++- Confirmation of how `NPCDescriptor` actually persists non-`Stats`-pattern
++  arrays, if the elemental resistance fields aren't surviving a restart.
++- Nothing needed from you for the Designer.cs UI — that one's manual by
++  necessity, but the event handlers are already written and waiting.

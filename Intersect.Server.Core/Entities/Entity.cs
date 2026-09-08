@@ -1596,9 +1596,56 @@ public abstract partial class Entity : IEntity
         return stats;
     }
 
+    /// <summary>
+    /// Null = unaffiliated, uses whatever legacy rules the subclass already
+    /// has (Player party/guild, Npc PlayerFriendConditions, etc). Set via the
+    /// Race/Backstory locked equipment slots or directly for Npcs tied to a
+    /// faction's garrison.
+    /// </summary>
+    public Guid? FactionId { get; set; }
+
     public virtual bool IsAllyOf(Entity otherEntity)
     {
         return this == otherEntity;
+    }
+
+    /// <summary>
+    /// Faction resolution shared by Player and Npc's IsAllyOf overrides.
+    /// Order: same faction always allied; an active FactionWar is a hard
+    /// override (hostile regardless of reputation); anything else falls
+    /// through to the subclass's existing legacy rules, passed in as
+    /// legacyFallback so this never changes behavior for entities with no
+    /// FactionId set.
+    /// </summary>
+    protected bool? ResolveFactionAlly(Entity other)
+    {
+        if (FactionId is null || other.FactionId is null)
+        {
+            return null; // no opinion — let the caller's legacy rules decide
+        }
+
+        if (FactionId == other.FactionId)
+        {
+            return true;
+        }
+
+        if (Factions.FactionManager.AreAtWar(FactionId.Value, other.FactionId.Value))
+        {
+            return false;
+        }
+
+        return null; // no active war — fall through to reputation/legacy rules
+    }
+
+    /// <summary>
+    /// Returns (flat, percent) elemental resistance for the given element.
+    /// Default is no resistance; Player sums equipped gear, Npc reads its
+    /// descriptor. Consulted by Formulas.CalculateDamage — see there for how
+    /// flat/percent combine and why True damage never reaches this.
+    /// </summary>
+    public virtual (int Flat, int Percent) GetElementalResistance(Element element)
+    {
+        return (0, 0);
     }
 
     //Attacking with projectile

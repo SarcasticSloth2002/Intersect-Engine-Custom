@@ -1365,8 +1365,27 @@ public partial class Npc : Entity
         return false;
     }
 
+    public override (int Flat, int Percent) GetElementalResistance(Element element)
+    {
+        if (element == Element.None)
+        {
+            return (0, 0);
+        }
+
+        return (Descriptor.ElementalResistance[(int)element], Descriptor.PercentageElementalResistance[(int)element]);
+    }
+
     public override bool IsAllyOf(Entity otherEntity)
     {
+        // Same precedence as Player.IsAllyOf(Player): a faction war is a hard
+        // override checked before any of the existing Npc-vs-Npc/PlayerFriend
+        // rules below, for both Npc-vs-Npc and Npc-vs-Player.
+        var factionResult = ResolveFactionAlly(otherEntity);
+        if (factionResult.HasValue)
+        {
+            return factionResult.Value;
+        }
+
         switch (otherEntity)
         {
             case Npc otherNpc:
