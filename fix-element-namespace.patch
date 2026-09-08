@@ -1,0 +1,44 @@
+diff -ruN a/Framework/Intersect.Framework.Core/Entities/Element.cs b/Framework/Intersect.Framework.Core/Entities/Element.cs
+--- a/Framework/Intersect.Framework.Core/Entities/Element.cs	1970-01-01 00:00:00.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/Entities/Element.cs	2026-09-08 03:54:21.913950113 +0000
+@@ -0,0 +1,18 @@
++namespace Intersect.Enums;
++
++public enum Element
++{
++    None = 0,
++
++    Fire,
++
++    Frost,
++
++    Storm,
++
++    Nature,
++
++    Holy,
++
++    Shadow,
++}
+diff -ruN "a/Intersect (Core)/Enums/Element.cs" "b/Intersect (Core)/Enums/Element.cs"
+--- "a/Intersect (Core)/Enums/Element.cs"	2026-09-08 03:54:16.102820029 +0000
++++ "b/Intersect (Core)/Enums/Element.cs"	1970-01-01 00:00:00.000000000 +0000
+@@ -1,18 +0,0 @@
+-namespace Intersect.Enums;
+-
+-public enum Element
+-{
+-    None = 0,
+-
+-    Fire,
+-
+-    Frost,
+-
+-    Storm,
+-
+-    Nature,
+-
+-    Holy,
+-
+-    Shadow,
+-}
