@@ -1,0 +1,215 @@
+diff -ruN a/Intersect.Editor/Forms/Editors/frmItem.Designer.cs b/Intersect.Editor/Forms/Editors/frmItem.Designer.cs
+--- a/Intersect.Editor/Forms/Editors/frmItem.Designer.cs	2026-09-08 05:10:46.273245048 +0000
++++ b/Intersect.Editor/Forms/Editors/frmItem.Designer.cs	2026-09-08 05:08:35.712143232 +0000
+@@ -202,6 +202,8 @@
+             lblScalingAmount = new Label();
+             cmbDamageType = new DarkComboBox();
+             lblDamageType = new Label();
++            cmbElement = new DarkComboBox();
++            lblElement = new Label();
+             lblCritChance = new Label();
+             cmbAttackAnimation = new DarkComboBox();
+             lblAttackAnimation = new Label();
+@@ -1519,6 +1521,8 @@
+             grpEquipment.Controls.Add(lblEquipmentSlot);
+             grpEquipment.Controls.Add(grpWeaponProperties);
+             grpEquipment.Controls.Add(grpShieldProperties);
++            grpEquipment.Controls.Add(cmbElement);
++            grpEquipment.Controls.Add(lblElement);
+             grpEquipment.ForeColor = System.Drawing.Color.Gainsboro;
+             grpEquipment.Location = new System.Drawing.Point(11, 643);
+             grpEquipment.Margin = new Padding(4, 3, 4, 3);
+@@ -2641,6 +2645,39 @@
+             lblDamageType.Size = new Size(81, 15);
+             lblDamageType.TabIndex = 41;
+             lblDamageType.Text = "Damage Type:";
++            //
++            // cmbElement
++            //
++            cmbElement.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            cmbElement.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            cmbElement.BorderStyle = ButtonBorderStyle.Solid;
++            cmbElement.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
++            cmbElement.DrawDropdownHoverOutline = false;
++            cmbElement.DrawFocusRectangle = false;
++            cmbElement.DrawMode = DrawMode.OwnerDrawFixed;
++            cmbElement.DropDownStyle = ComboBoxStyle.DropDownList;
++            cmbElement.FlatStyle = FlatStyle.Flat;
++            cmbElement.ForeColor = System.Drawing.Color.Gainsboro;
++            cmbElement.FormattingEnabled = true;
++            cmbElement.Items.AddRange(new object[] { "None", "Fire", "Frost", "Storm", "Nature", "Holy", "Shadow" });
++            cmbElement.Location = new System.Drawing.Point(663, 649);
++            cmbElement.Margin = new Padding(4, 3, 4, 3);
++            cmbElement.Name = "cmbElement";
++            cmbElement.Size = new Size(248, 24);
++            cmbElement.TabIndex = 200;
++            cmbElement.Text = "None";
++            cmbElement.TextPadding = new Padding(2);
++            cmbElement.SelectedIndexChanged += cmbElement_SelectedIndexChanged;
++            //
++            // lblElement
++            //
++            lblElement.AutoSize = true;
++            lblElement.Location = new System.Drawing.Point(660, 630);
++            lblElement.Margin = new Padding(4, 0, 4, 0);
++            lblElement.Name = "lblElement";
++            lblElement.Size = new Size(81, 15);
++            lblElement.TabIndex = 201;
++            lblElement.Text = "Element:";
+             // 
+             // lblCritChance
+             // 
+@@ -3126,6 +3163,8 @@
+         private DarkComboBox cmbFemalePaperdoll;
+         private DarkComboBox cmbAttackAnimation;
+         private DarkComboBox cmbDamageType;
++        private DarkComboBox cmbElement;
++        private Label lblElement;
+         private DarkComboBox cmbScalingStat;
+         private DarkComboBox cmbProjectile;
+         private DarkToolStrip toolStrip;
+diff -ruN a/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs b/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs
+--- a/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs	2026-09-08 05:10:46.274481018 +0000
++++ b/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs	2026-09-08 05:09:41.311733130 +0000
+@@ -104,6 +104,8 @@
+             lblScaling = new Label();
+             cmbDamageType = new DarkComboBox();
+             lblDamageType = new Label();
++            cmbElement = new DarkComboBox();
++            lblElement = new Label();
+             lblCritChance = new Label();
+             cmbAttackAnimation = new DarkComboBox();
+             lblAttackAnimation = new Label();
+@@ -802,6 +804,8 @@
+             pnlContainer.AutoScroll = true;
+             pnlContainer.Controls.Add(grpImmunities);
+             pnlContainer.Controls.Add(grpCombat);
++            pnlContainer.Controls.Add(cmbElement);
++            pnlContainer.Controls.Add(lblElement);
+             pnlContainer.Controls.Add(grpCommonEvents);
+             pnlContainer.Controls.Add(grpBehavior);
+             pnlContainer.Controls.Add(grpRegen);
+@@ -1192,6 +1196,39 @@
+             lblDamageType.Size = new Size(81, 15);
+             lblDamageType.TabIndex = 53;
+             lblDamageType.Text = "Damage Type:";
++            //
++            // cmbElement
++            //
++            cmbElement.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            cmbElement.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            cmbElement.BorderStyle = ButtonBorderStyle.Solid;
++            cmbElement.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
++            cmbElement.DrawDropdownHoverOutline = false;
++            cmbElement.DrawFocusRectangle = false;
++            cmbElement.DrawMode = DrawMode.OwnerDrawFixed;
++            cmbElement.DropDownStyle = ComboBoxStyle.DropDownList;
++            cmbElement.FlatStyle = FlatStyle.Flat;
++            cmbElement.ForeColor = System.Drawing.Color.Gainsboro;
++            cmbElement.FormattingEnabled = true;
++            cmbElement.Items.AddRange(new object[] { "None", "Fire", "Frost", "Storm", "Nature", "Holy", "Shadow" });
++            cmbElement.Location = new System.Drawing.Point(536, 764);
++            cmbElement.Margin = new Padding(4, 3, 4, 3);
++            cmbElement.Name = "cmbElement";
++            cmbElement.Size = new Size(298, 24);
++            cmbElement.TabIndex = 200;
++            cmbElement.Text = "None";
++            cmbElement.TextPadding = new Padding(2);
++            cmbElement.SelectedIndexChanged += cmbElement_SelectedIndexChanged;
++            //
++            // lblElement
++            //
++            lblElement.AutoSize = true;
++            lblElement.Location = new System.Drawing.Point(532, 745);
++            lblElement.Margin = new Padding(4, 0, 4, 0);
++            lblElement.Name = "lblElement";
++            lblElement.Size = new Size(81, 15);
++            lblElement.TabIndex = 201;
++            lblElement.Text = "Element:";
+             // 
+             // lblCritChance
+             // 
+@@ -2260,6 +2297,8 @@
+         private System.Windows.Forms.Label lblScalingStat;
+         private System.Windows.Forms.Label lblScaling;
+         private DarkComboBox cmbDamageType;
++        private DarkComboBox cmbElement;
++        private System.Windows.Forms.Label lblElement;
+         private System.Windows.Forms.Label lblDamageType;
+         private System.Windows.Forms.Label lblCritChance;
+         private DarkComboBox cmbAttackAnimation;
+diff -ruN a/Intersect.Editor/Forms/Editors/frmSpell.Designer.cs b/Intersect.Editor/Forms/Editors/frmSpell.Designer.cs
+--- a/Intersect.Editor/Forms/Editors/frmSpell.Designer.cs	2026-09-08 05:10:46.276635223 +0000
++++ b/Intersect.Editor/Forms/Editors/frmSpell.Designer.cs	2026-09-08 05:10:29.750451730 +0000
+@@ -137,6 +137,8 @@
+             this.lblCritChance = new System.Windows.Forms.Label();
+             this.lblScaling = new System.Windows.Forms.Label();
+             this.cmbDamageType = new DarkUI.Controls.DarkComboBox();
++            this.cmbElement = new DarkUI.Controls.DarkComboBox();
++            this.lblElement = new System.Windows.Forms.Label();
+             this.lblDamageType = new System.Windows.Forms.Label();
+             this.lblHPDamage = new System.Windows.Forms.Label();
+             this.lblManaDamage = new System.Windows.Forms.Label();
+@@ -970,6 +972,8 @@
+             this.grpCombat.Controls.Add(this.grpEffect);
+             this.grpCombat.Controls.Add(this.grpEffectDuration);
+             this.grpCombat.Controls.Add(this.grpDamage);
++            this.grpCombat.Controls.Add(this.cmbElement);
++            this.grpCombat.Controls.Add(this.lblElement);
+             this.grpCombat.ForeColor = System.Drawing.Color.Gainsboro;
+             this.grpCombat.Location = new System.Drawing.Point(517, 192);
+             this.grpCombat.Name = "grpCombat";
+@@ -1878,6 +1882,44 @@
+             this.cmbDamageType.TextPadding = new System.Windows.Forms.Padding(2);
+             this.cmbDamageType.SelectedIndexChanged += new System.EventHandler(this.cmbDamageType_SelectedIndexChanged);
+             // 
++            // cmbElement
++            // 
++            this.cmbElement.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(69)))), ((int)(((byte)(73)))), ((int)(((byte)(74)))));
++            this.cmbElement.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
++            this.cmbElement.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
++            this.cmbElement.ButtonColor = System.Drawing.Color.FromArgb(((int)(((byte)(43)))), ((int)(((byte)(43)))), ((int)(((byte)(43)))));
++            this.cmbElement.DrawDropdownHoverOutline = false;
++            this.cmbElement.DrawFocusRectangle = false;
++            this.cmbElement.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
++            this.cmbElement.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
++            this.cmbElement.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
++            this.cmbElement.ForeColor = System.Drawing.Color.Gainsboro;
++            this.cmbElement.FormattingEnabled = true;
++            this.cmbElement.Items.AddRange(new object[] {
++            "None",
++            "Fire",
++            "Frost",
++            "Storm",
++            "Nature",
++            "Holy",
++            "Shadow"});
++            this.cmbElement.Location = new System.Drawing.Point(227, 486);
++            this.cmbElement.Name = "cmbElement";
++            this.cmbElement.Size = new System.Drawing.Size(207, 21);
++            this.cmbElement.TabIndex = 200;
++            this.cmbElement.Text = "None";
++            this.cmbElement.TextPadding = new System.Windows.Forms.Padding(2);
++            this.cmbElement.SelectedIndexChanged += new System.EventHandler(this.cmbElement_SelectedIndexChanged);
++            // 
++            // lblElement
++            // 
++            this.lblElement.AutoSize = true;
++            this.lblElement.Location = new System.Drawing.Point(224, 470);
++            this.lblElement.Name = "lblElement";
++            this.lblElement.Size = new System.Drawing.Size(81, 15);
++            this.lblElement.TabIndex = 201;
++            this.lblElement.Text = "Element:";
++            // 
+             // lblDamageType
+             // 
+             this.lblDamageType.AutoSize = true;
+@@ -2600,6 +2642,8 @@
+         private System.Windows.Forms.Label lblCritChance;
+         private System.Windows.Forms.Label lblScaling;
+         private DarkComboBox cmbDamageType;
++        private DarkComboBox cmbElement;
++        private System.Windows.Forms.Label lblElement;
+         private System.Windows.Forms.Label lblDamageType;
+         private System.Windows.Forms.Label lblHPDamage;
+         private System.Windows.Forms.Label lblManaDamage;

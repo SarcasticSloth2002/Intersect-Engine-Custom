@@ -137,6 +137,8 @@ namespace Intersect.Editor.Forms.Editors
             this.lblCritChance = new System.Windows.Forms.Label();
             this.lblScaling = new System.Windows.Forms.Label();
             this.cmbDamageType = new DarkUI.Controls.DarkComboBox();
+            this.cmbElement = new DarkUI.Controls.DarkComboBox();
+            this.lblElement = new System.Windows.Forms.Label();
             this.lblDamageType = new System.Windows.Forms.Label();
             this.lblHPDamage = new System.Windows.Forms.Label();
             this.lblManaDamage = new System.Windows.Forms.Label();
@@ -970,6 +972,8 @@ namespace Intersect.Editor.Forms.Editors
             this.grpCombat.Controls.Add(this.grpEffect);
             this.grpCombat.Controls.Add(this.grpEffectDuration);
             this.grpCombat.Controls.Add(this.grpDamage);
+            this.grpCombat.Controls.Add(this.cmbElement);
+            this.grpCombat.Controls.Add(this.lblElement);
             this.grpCombat.ForeColor = System.Drawing.Color.Gainsboro;
             this.grpCombat.Location = new System.Drawing.Point(517, 192);
             this.grpCombat.Name = "grpCombat";
@@ -1878,6 +1882,44 @@ namespace Intersect.Editor.Forms.Editors
             this.cmbDamageType.TextPadding = new System.Windows.Forms.Padding(2);
             this.cmbDamageType.SelectedIndexChanged += new System.EventHandler(this.cmbDamageType_SelectedIndexChanged);
             // 
+            // cmbElement
+            // 
+            this.cmbElement.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(69)))), ((int)(((byte)(73)))), ((int)(((byte)(74)))));
+            this.cmbElement.BorderColor = System.Drawing.Color.FromArgb(((int)(((byte)(90)))), ((int)(((byte)(90)))), ((int)(((byte)(90)))));
+            this.cmbElement.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
+            this.cmbElement.ButtonColor = System.Drawing.Color.FromArgb(((int)(((byte)(43)))), ((int)(((byte)(43)))), ((int)(((byte)(43)))));
+            this.cmbElement.DrawDropdownHoverOutline = false;
+            this.cmbElement.DrawFocusRectangle = false;
+            this.cmbElement.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            this.cmbElement.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbElement.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.cmbElement.ForeColor = System.Drawing.Color.Gainsboro;
+            this.cmbElement.FormattingEnabled = true;
+            this.cmbElement.Items.AddRange(new object[] {
+            "None",
+            "Fire",
+            "Frost",
+            "Storm",
+            "Nature",
+            "Holy",
+            "Shadow"});
+            this.cmbElement.Location = new System.Drawing.Point(227, 486);
+            this.cmbElement.Name = "cmbElement";
+            this.cmbElement.Size = new System.Drawing.Size(207, 21);
+            this.cmbElement.TabIndex = 200;
+            this.cmbElement.Text = "None";
+            this.cmbElement.TextPadding = new System.Windows.Forms.Padding(2);
+            this.cmbElement.SelectedIndexChanged += new System.EventHandler(this.cmbElement_SelectedIndexChanged);
+            // 
+            // lblElement
+            // 
+            this.lblElement.AutoSize = true;
+            this.lblElement.Location = new System.Drawing.Point(224, 470);
+            this.lblElement.Name = "lblElement";
+            this.lblElement.Size = new System.Drawing.Size(81, 15);
+            this.lblElement.TabIndex = 201;
+            this.lblElement.Text = "Element:";
+            // 
             // lblDamageType
             // 
             this.lblDamageType.AutoSize = true;
@@ -2600,6 +2642,8 @@ namespace Intersect.Editor.Forms.Editors
         private System.Windows.Forms.Label lblCritChance;
         private System.Windows.Forms.Label lblScaling;
         private DarkComboBox cmbDamageType;
+        private DarkComboBox cmbElement;
+        private System.Windows.Forms.Label lblElement;
         private System.Windows.Forms.Label lblDamageType;
         private System.Windows.Forms.Label lblHPDamage;
         private System.Windows.Forms.Label lblManaDamage;

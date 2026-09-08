@@ -202,6 +202,8 @@ namespace Intersect.Editor.Forms.Editors
             lblScalingAmount = new Label();
             cmbDamageType = new DarkComboBox();
             lblDamageType = new Label();
+            cmbElement = new DarkComboBox();
+            lblElement = new Label();
             lblCritChance = new Label();
             cmbAttackAnimation = new DarkComboBox();
             lblAttackAnimation = new Label();
@@ -1519,6 +1521,8 @@ namespace Intersect.Editor.Forms.Editors
             grpEquipment.Controls.Add(lblEquipmentSlot);
             grpEquipment.Controls.Add(grpWeaponProperties);
             grpEquipment.Controls.Add(grpShieldProperties);
+            grpEquipment.Controls.Add(cmbElement);
+            grpEquipment.Controls.Add(lblElement);
             grpEquipment.ForeColor = System.Drawing.Color.Gainsboro;
             grpEquipment.Location = new System.Drawing.Point(11, 643);
             grpEquipment.Margin = new Padding(4, 3, 4, 3);
@@ -2641,6 +2645,39 @@ namespace Intersect.Editor.Forms.Editors
             lblDamageType.Size = new Size(81, 15);
             lblDamageType.TabIndex = 41;
             lblDamageType.Text = "Damage Type:";
+            //
+            // cmbElement
+            //
+            cmbElement.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
+            cmbElement.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
+            cmbElement.BorderStyle = ButtonBorderStyle.Solid;
+            cmbElement.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
+            cmbElement.DrawDropdownHoverOutline = false;
+            cmbElement.DrawFocusRectangle = false;
+            cmbElement.DrawMode = DrawMode.OwnerDrawFixed;
+            cmbElement.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbElement.FlatStyle = FlatStyle.Flat;
+            cmbElement.ForeColor = System.Drawing.Color.Gainsboro;
+            cmbElement.FormattingEnabled = true;
+            cmbElement.Items.AddRange(new object[] { "None", "Fire", "Frost", "Storm", "Nature", "Holy", "Shadow" });
+            cmbElement.Location = new System.Drawing.Point(663, 649);
+            cmbElement.Margin = new Padding(4, 3, 4, 3);
+            cmbElement.Name = "cmbElement";
+            cmbElement.Size = new Size(248, 24);
+            cmbElement.TabIndex = 200;
+            cmbElement.Text = "None";
+            cmbElement.TextPadding = new Padding(2);
+            cmbElement.SelectedIndexChanged += cmbElement_SelectedIndexChanged;
+            //
+            // lblElement
+            //
+            lblElement.AutoSize = true;
+            lblElement.Location = new System.Drawing.Point(660, 630);
+            lblElement.Margin = new Padding(4, 0, 4, 0);
+            lblElement.Name = "lblElement";
+            lblElement.Size = new Size(81, 15);
+            lblElement.TabIndex = 201;
+            lblElement.Text = "Element:";
             // 
             // lblCritChance
             // 
@@ -3126,6 +3163,8 @@ namespace Intersect.Editor.Forms.Editors
         private DarkComboBox cmbFemalePaperdoll;
         private DarkComboBox cmbAttackAnimation;
         private DarkComboBox cmbDamageType;
+        private DarkComboBox cmbElement;
+        private Label lblElement;
         private DarkComboBox cmbScalingStat;
         private DarkComboBox cmbProjectile;
         private DarkToolStrip toolStrip;
