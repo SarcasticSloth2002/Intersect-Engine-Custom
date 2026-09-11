@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Intersect.Server.Migrations.Sqlite.Game
 {
     [DbContext(typeof(SqliteGameContext))]
-    [Migration("20260911022517_AddFactionsTable")]
-    partial class AddFactionsTable
+    [Migration("20260911203847_AddFactionsTableV2")]
+    partial class AddFactionsTableV2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
