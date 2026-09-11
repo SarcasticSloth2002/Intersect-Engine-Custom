@@ -156,39 +156,6 @@ namespace Intersect.Server.Migrations.Sqlite.Game
                     b.ToTable("Events");
                 });
 
-            modelBuilder.Entity("Intersect.Framework.Core.GameObjects.Factions.FactionDescriptor", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AtWarWithJson")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("AtWarWith");
-
-                    b.Property<string>("Folder")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastWarDeclarationTime")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("LeaderPlayerId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("TEXT")
-                        .HasColumnOrder(0);
-
-                    b.Property<long>("TimeCreated")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("WarCooldownHours")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Factions");
-                });
-
             modelBuilder.Entity("Intersect.Framework.Core.GameObjects.Items.EquipmentProperties", b =>
                 {
                     b.Property<Guid>("DescriptorId")
@@ -494,9 +461,6 @@ namespace Intersect.Server.Migrations.Sqlite.Game
 
                     b.Property<long>("Experience")
                         .HasColumnType("INTEGER");
-
-                    b.Property<Guid?>("FactionId")
-                        .HasColumnType("TEXT");
 
                     b.Property<byte>("FleeHealthPercentage")
                         .HasColumnType("INTEGER");

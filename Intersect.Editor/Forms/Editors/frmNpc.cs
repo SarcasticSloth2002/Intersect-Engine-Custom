@@ -9,7 +9,6 @@ using Intersect.Editor.Networking;
 using Intersect.Enums;
 using Intersect.Framework.Core.GameObjects.Animations;
 using Intersect.Framework.Core.GameObjects.Events;
-using Intersect.Framework.Core.GameObjects.Factions;
 using Intersect.Framework.Core.GameObjects.Items;
 using Intersect.Framework.Core.GameObjects.NPCs;
 using Intersect.GameObjects;
@@ -247,10 +246,6 @@ public partial class FrmNpc : EditorForm
             cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
         }
 
-        cmbFaction.Items.Clear();
-        cmbFaction.Items.Add("None");
-        cmbFaction.Items.AddRange(FactionDescriptor.Names);
-
         lblScalingStat.Text = Strings.NpcEditor.scalingstat;
         lblScaling.Text = Strings.NpcEditor.scalingamount;
         lblAttackAnimation.Text = Strings.NpcEditor.attackanimation;
@@ -332,7 +327,6 @@ public partial class FrmNpc : EditorForm
             nudScaling.Value = mEditorItem.Scaling;
             cmbDamageType.SelectedIndex = mEditorItem.DamageType;
             cmbElement.SelectedIndex = mEditorItem.Element;
-            cmbFaction.SelectedIndex = mEditorItem.FactionId.HasValue ? FactionDescriptor.ListIndex(mEditorItem.FactionId.Value) + 1 : 0;
             cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
             cmbAttackAnimation.SelectedIndex = AnimationDescriptor.ListIndex(mEditorItem.AttackAnimationId) + 1;
             cmbAttackSpeedModifier.SelectedIndex = mEditorItem.AttackSpeedModifier;
@@ -637,13 +631,6 @@ public partial class FrmNpc : EditorForm
     private void cmbElement_SelectedIndexChanged(object sender, EventArgs e)
     {
         mEditorItem.Element = cmbElement.SelectedIndex;
-    }
-
-    private void cmbFaction_SelectedIndexChanged(object sender, EventArgs e)
-    {
-        mEditorItem.FactionId = cmbFaction.SelectedIndex < 1
-            ? (Guid?)null
-            : FactionDescriptor.IdFromList(cmbFaction.SelectedIndex - 1);
     }
 
     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)

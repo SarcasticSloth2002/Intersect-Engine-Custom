@@ -198,14 +198,6 @@ public partial class NPCDescriptor : DatabaseObject<NPCDescriptor>, IFolderable
     public int Element { get; set; }
 
     /// <summary>
-    /// Which faction this NPC belongs to, if any. Set/read via the Faction
-    /// dropdown in the Npc Editor's Behavior panel. Null = unaffiliated,
-    /// uses the existing PlayerFriendConditions/PlayerCanAttackConditions
-    /// rules unchanged — see Entity.ResolveFactionAlly.
-    /// </summary>
-    public Guid? FactionId { get; set; }
-
-    /// <summary>
     /// Flat elemental resistance, indexed by <see cref="Intersect.Enums.Element"/>.
     /// Sized/initialized the same way <see cref="Stats"/> is above.
     /// </summary>

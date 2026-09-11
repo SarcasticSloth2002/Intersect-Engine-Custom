@@ -7,7 +7,6 @@ using Intersect.Editor.Maps;
 using Intersect.Enums;
 using Intersect.Framework.Core.GameObjects.Animations;
 using Intersect.Framework.Core.GameObjects.Crafting;
-using Intersect.Framework.Core.GameObjects.Factions;
 using Intersect.Framework.Core.GameObjects.Events;
 using Intersect.Framework.Core.GameObjects.Items;
 using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
@@ -621,21 +620,6 @@ internal sealed partial class PacketHandler
                     var cft = new CraftingTableDescriptor(id);
                     cft.Load(json);
                     CraftingTableDescriptor.Lookup.Set(id, cft);
-                }
-
-                break;
-
-            case GameObjectType.Faction:
-                if (deleted)
-                {
-                    var fct = FactionDescriptor.Get(id);
-                    fct.Delete();
-                }
-                else
-                {
-                    var fct = new FactionDescriptor(id);
-                    fct.Load(json);
-                    FactionDescriptor.Lookup.Set(id, fct);
                 }
 
                 break;
