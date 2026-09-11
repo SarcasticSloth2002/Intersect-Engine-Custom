@@ -12,6 +12,7 @@ using Intersect.Core;
 using Intersect.Enums;
 using Intersect.Framework.Core.GameObjects.Animations;
 using Intersect.Framework.Core.GameObjects.Crafting;
+using Intersect.Framework.Core.GameObjects.Factions;
 using Intersect.Framework.Core.GameObjects.Events;
 using Intersect.Framework.Core.GameObjects.Items;
 using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
@@ -700,6 +701,7 @@ public static partial class DbInterface
                 continue;
             }
 
+            Console.WriteLine($"Loading game objects of type {type}...");
             LoadGameObjects(type);
         }
     }
@@ -780,6 +782,10 @@ public static partial class DbInterface
                 break;
             case GameObjectType.UserVariable:
                 UserVariableDescriptor.Lookup.Clear();
+
+                break;
+            case GameObjectType.Faction:
+                FactionDescriptor.Lookup.Clear();
 
                 break;
             default:
@@ -929,6 +935,13 @@ public static partial class DbInterface
                         foreach (var psw in context.UserVariables)
                         {
                             UserVariableDescriptor.Lookup.Set(psw.Id, psw);
+                        }
+
+                        break;
+                    case GameObjectType.Faction:
+                        foreach (var fct in context.Factions)
+                        {
+                            FactionDescriptor.Lookup.Set(fct.Id, fct);
                         }
 
                         break;

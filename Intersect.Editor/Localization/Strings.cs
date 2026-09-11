@@ -1419,6 +1419,61 @@ Tick timer saved in server config.json.";
         public static LocalizedString remove = @"Remove Selected";
     }
 
+    public partial struct FactionEditor
+    {
+        public static LocalizedString cancel = @"Cancel";
+
+        public static LocalizedString copy = @"Copy Faction";
+
+        public static LocalizedString delete = @"Delete Faction";
+
+        public static LocalizedString deleteprompt =
+            @"Are you sure you want to delete this faction? This action cannot be reverted!";
+
+        public static LocalizedString folderlabel = @"Folder:";
+
+        public static LocalizedString foldertitle = @"Add Folder";
+
+        public static LocalizedString folderprompt = @"Enter a name for the folder you'd like to add:";
+
+        public static LocalizedString general = @"General";
+
+        public static LocalizedString name = @"Name:";
+
+        public static LocalizedString leaderplayerid = @"Leader Player Id:";
+
+        public static LocalizedString warcooldownhours = @"War Cooldown (Hrs):";
+
+        public static LocalizedString New = @"New Faction";
+
+        public static LocalizedString paste = @"Paste Faction";
+
+        public static LocalizedString save = @"Save";
+
+        public static LocalizedString searchplaceholder = @"Search...";
+
+        public static LocalizedString sortalphabetically = @"Order Alphabetically";
+
+        public static LocalizedString factions = @"Factions";
+
+        public static LocalizedString title = @"Faction Editor";
+
+        public static LocalizedString undo = @"Undo Changes";
+
+        public static LocalizedString undoprompt =
+            @"Are you sure you want to undo changes made to this faction? This action cannot be reverted!";
+
+        public static LocalizedString undotitle = @"Undo Changes";
+
+        public static LocalizedString atwarwith = @"At War With";
+
+        public static LocalizedString addatwarlabel = @"Declare War On:";
+
+        public static LocalizedString add = @"Add Selected";
+
+        public static LocalizedString remove = @"Remove Selected";
+    }
+
     public partial struct CraftsEditor
     {
 

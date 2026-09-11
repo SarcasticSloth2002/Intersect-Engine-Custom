@@ -2,6 +2,7 @@ using Intersect.Extensions;
 using Intersect.Framework.Core.GameObjects.Animations;
 using Intersect.Framework.Core.GameObjects.Crafting;
 using Intersect.Framework.Core.GameObjects.Events;
+using Intersect.Framework.Core.GameObjects.Factions;
 using Intersect.Framework.Core.GameObjects.Items;
 using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
 using Intersect.Framework.Core.GameObjects.Maps;
@@ -71,4 +72,7 @@ public enum GameObjectType
 
     [GameObjectInfo(typeof(UserVariableDescriptor), "user_variables")]
     UserVariable,
+
+    [GameObjectInfo(typeof(FactionDescriptor), "factions")]
+    Faction,
 }

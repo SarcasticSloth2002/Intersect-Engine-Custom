@@ -105,6 +105,8 @@ namespace Intersect.Editor.Forms.Editors
             cmbDamageType = new DarkComboBox();
             lblDamageType = new Label();
             cmbElement = new DarkComboBox();
+            cmbFaction = new DarkComboBox();
+            lblFaction = new Label();
             lblElement = new Label();
             lblCritChance = new Label();
             cmbAttackAnimation = new DarkComboBox();
@@ -805,6 +807,8 @@ namespace Intersect.Editor.Forms.Editors
             pnlContainer.Controls.Add(grpImmunities);
             pnlContainer.Controls.Add(grpCombat);
             pnlContainer.Controls.Add(cmbElement);
+            pnlContainer.Controls.Add(cmbFaction);
+            pnlContainer.Controls.Add(lblFaction);
             pnlContainer.Controls.Add(lblElement);
             pnlContainer.Controls.Add(grpCommonEvents);
             pnlContainer.Controls.Add(grpBehavior);
@@ -1219,6 +1223,39 @@ namespace Intersect.Editor.Forms.Editors
             cmbElement.Text = "None";
             cmbElement.TextPadding = new Padding(2);
             cmbElement.SelectedIndexChanged += cmbElement_SelectedIndexChanged;
+            //
+            // cmbFaction
+            //
+            cmbFaction.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
+            cmbFaction.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
+            cmbFaction.BorderStyle = ButtonBorderStyle.Solid;
+            cmbFaction.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
+            cmbFaction.DrawDropdownHoverOutline = false;
+            cmbFaction.DrawFocusRectangle = false;
+            cmbFaction.DrawMode = DrawMode.OwnerDrawFixed;
+            cmbFaction.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbFaction.FlatStyle = FlatStyle.Flat;
+            cmbFaction.ForeColor = System.Drawing.Color.Gainsboro;
+            cmbFaction.FormattingEnabled = true;
+            cmbFaction.Items.AddRange(new object[] { "None" });
+            cmbFaction.Location = new System.Drawing.Point(536, 798);
+            cmbFaction.Margin = new Padding(4, 3, 4, 3);
+            cmbFaction.Name = "cmbFaction";
+            cmbFaction.Size = new Size(298, 24);
+            cmbFaction.TabIndex = 202;
+            cmbFaction.Text = "None";
+            cmbFaction.TextPadding = new Padding(2);
+            cmbFaction.SelectedIndexChanged += cmbFaction_SelectedIndexChanged;
+            //
+            // lblFaction
+            //
+            lblFaction.AutoSize = true;
+            lblFaction.Location = new System.Drawing.Point(532, 779);
+            lblFaction.Margin = new Padding(4, 0, 4, 0);
+            lblFaction.Name = "lblFaction";
+            lblFaction.Size = new Size(81, 15);
+            lblFaction.TabIndex = 203;
+            lblFaction.Text = "Faction:";
             //
             // lblElement
             //
@@ -2298,6 +2335,8 @@ namespace Intersect.Editor.Forms.Editors
         private System.Windows.Forms.Label lblScaling;
         private DarkComboBox cmbDamageType;
         private DarkComboBox cmbElement;
+        private DarkComboBox cmbFaction;
+        private System.Windows.Forms.Label lblFaction;
         private System.Windows.Forms.Label lblElement;
         private System.Windows.Forms.Label lblDamageType;
         private System.Windows.Forms.Label lblCritChance;

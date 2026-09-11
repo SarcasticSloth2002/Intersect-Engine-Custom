@@ -117,6 +117,7 @@ public partial class Npc : Entity
         Immunities = npcDescriptor.Immunities;
         Descriptor = npcDescriptor;
         Despawnable = despawnable;
+        FactionId = npcDescriptor.FactionId;
 
         for (var i = 0; i < Enum.GetValues<Stat>().Length; i++)
         {

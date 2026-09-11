@@ -1,0 +1,1640 @@
+diff -ruN a/Framework/Intersect.Framework.Core/Descriptors/GameObjectType.cs b/Framework/Intersect.Framework.Core/Descriptors/GameObjectType.cs
+--- a/Framework/Intersect.Framework.Core/Descriptors/GameObjectType.cs	2026-09-10 20:43:20.685249347 +0000
++++ b/Framework/Intersect.Framework.Core/Descriptors/GameObjectType.cs	2026-09-10 20:40:46.355899874 +0000
+@@ -2,6 +2,7 @@
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Crafting;
+ using Intersect.Framework.Core.GameObjects.Events;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
+ using Intersect.Framework.Core.GameObjects.Maps;
+@@ -71,4 +72,7 @@
+ 
+     [GameObjectInfo(typeof(UserVariableDescriptor), "user_variables")]
+     UserVariable,
++
++    [GameObjectInfo(typeof(FactionDescriptor), "factions")]
++    Faction,
+ }
+diff -ruN a/Framework/Intersect.Framework.Core/GameObjects/Factions/FactionDescriptor.cs b/Framework/Intersect.Framework.Core/GameObjects/Factions/FactionDescriptor.cs
+--- a/Framework/Intersect.Framework.Core/GameObjects/Factions/FactionDescriptor.cs	1970-01-01 00:00:00.000000000 +0000
++++ b/Framework/Intersect.Framework.Core/GameObjects/Factions/FactionDescriptor.cs	2026-09-10 20:40:40.698751378 +0000
+@@ -0,0 +1,58 @@
++using System.ComponentModel.DataAnnotations.Schema;
++using Intersect.Models;
++using Newtonsoft.Json;
++
++namespace Intersect.Framework.Core.GameObjects.Factions;
++
++/// <summary>
++/// A named faction that Players and Npcs can belong to (via their FactionId).
++/// Editable through the Editor the same way Items/NPCs/Spells are.
++/// </summary>
++public partial class FactionDescriptor : DatabaseObject<FactionDescriptor>, IFolderable
++{
++    /// <summary>
++    /// PlayerId of the current leader. Only this player may declare war on
++    /// this faction's behalf. Null = no leader; no one can declare war.
++    /// </summary>
++    public Guid? LeaderPlayerId { get; set; }
++
++    /// <summary>
++    /// How many hours must pass between this faction's war declarations.
++    /// </summary>
++    public int WarCooldownHours { get; set; } = 1;
++
++    public DateTime? LastWarDeclarationTime { get; set; }
++
++    /// <summary>
++    /// Other factions this one is currently at war with. Symmetric — both
++    /// sides' lists are updated together when war is declared or ended, so
++    /// either side's list alone is authoritative for hostility checks.
++    /// </summary>
++    [NotMapped]
++    public DbList<FactionDescriptor> AtWarWith { get; set; } = [];
++
++    [JsonIgnore]
++    [Column("AtWarWith")]
++    public string AtWarWithJson
++    {
++        get => JsonConvert.SerializeObject(AtWarWith, Formatting.None);
++        protected set => AtWarWith = JsonConvert.DeserializeObject<DbList<FactionDescriptor>>(value) ?? [];
++    }
++
++    [JsonConstructor]
++    public FactionDescriptor(Guid id) : base(id)
++    {
++        Name = "New Faction";
++    }
++
++    //Parameterless constructor for EF
++    public FactionDescriptor()
++    {
++        Name = "New Faction";
++    }
++
++    /// <inheritdoc />
++    public string Folder { get; set; } = string.Empty;
++
++    public bool IsAtWarWith(Guid otherFactionId) => AtWarWith.Contains(otherFactionId);
++}
+diff -ruN a/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs b/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs
+--- a/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs	2026-09-10 20:43:20.770770235 +0000
++++ b/Framework/Intersect.Framework.Core/GameObjects/NPCs/NPCDescriptor.cs	2026-09-10 20:41:48.249674232 +0000
+@@ -198,6 +198,14 @@
+     public int Element { get; set; }
+ 
+     /// <summary>
++    /// Which faction this NPC belongs to, if any. Set/read via the Faction
++    /// dropdown in the Npc Editor's Behavior panel. Null = unaffiliated,
++    /// uses the existing PlayerFriendConditions/PlayerCanAttackConditions
++    /// rules unchanged — see Entity.ResolveFactionAlly.
++    /// </summary>
++    public Guid? FactionId { get; set; }
++
++    /// <summary>
+     /// Flat elemental resistance, indexed by <see cref="Intersect.Enums.Element"/>.
+     /// Sized/initialized the same way <see cref="Stats"/> is above.
+     /// </summary>
+diff -ruN a/Intersect.Editor/Forms/Editors/frmFactions.Designer.cs b/Intersect.Editor/Forms/Editors/frmFactions.Designer.cs
+--- a/Intersect.Editor/Forms/Editors/frmFactions.Designer.cs	1970-01-01 00:00:00.000000000 +0000
++++ b/Intersect.Editor/Forms/Editors/frmFactions.Designer.cs	2026-09-10 21:39:55.648739742 +0000
+@@ -0,0 +1,521 @@
++using DarkUI.Controls;
++
++namespace Intersect.Editor.Forms.Editors
++{
++    partial class FrmFactions
++    {
++        private System.ComponentModel.IContainer components = null;
++
++        protected override void Dispose(bool disposing)
++        {
++            if (disposing && (components != null))
++            {
++                components.Dispose();
++            }
++            base.Dispose(disposing);
++        }
++
++        #region Windows Form Designer generated code
++
++        private void InitializeComponent()
++        {
++            this.components = new System.ComponentModel.Container();
++            this.btnCancel = new DarkUI.Controls.DarkButton();
++            this.btnSave = new DarkUI.Controls.DarkButton();
++            this.grpFactions = new DarkUI.Controls.DarkGroupBox();
++            this.btnClearSearch = new DarkUI.Controls.DarkButton();
++            this.txtSearch = new DarkUI.Controls.DarkTextBox();
++            this.lstGameObjects = new Intersect.Editor.Forms.Controls.GameObjectList();
++            this.pnlContainer = new System.Windows.Forms.Panel();
++            this.grpGeneral = new DarkUI.Controls.DarkGroupBox();
++            this.btnAddFolder = new DarkUI.Controls.DarkButton();
++            this.lblFolder = new System.Windows.Forms.Label();
++            this.cmbFolder = new DarkUI.Controls.DarkComboBox();
++            this.lblName = new System.Windows.Forms.Label();
++            this.txtName = new DarkUI.Controls.DarkTextBox();
++            this.lblLeaderPlayerId = new System.Windows.Forms.Label();
++            this.txtLeaderPlayerId = new DarkUI.Controls.DarkTextBox();
++            this.lblWarCooldownHours = new System.Windows.Forms.Label();
++            this.nudWarCooldownHours = new DarkUI.Controls.DarkNumericUpDown();
++            this.grpAtWar = new DarkUI.Controls.DarkGroupBox();
++            this.btnRemoveAtWar = new DarkUI.Controls.DarkButton();
++            this.btnAddAtWar = new DarkUI.Controls.DarkButton();
++            this.cmbAtWar = new DarkUI.Controls.DarkComboBox();
++            this.lblAddAtWar = new System.Windows.Forms.Label();
++            this.lstAtWar = new System.Windows.Forms.ListBox();
++            this.toolStrip = new DarkUI.Controls.DarkToolStrip();
++            this.toolStripItemNew = new System.Windows.Forms.ToolStripButton();
++            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
++            this.toolStripItemDelete = new System.Windows.Forms.ToolStripButton();
++            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
++            this.btnAlphabetical = new System.Windows.Forms.ToolStripButton();
++            this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
++            this.toolStripItemCopy = new System.Windows.Forms.ToolStripButton();
++            this.toolStripItemPaste = new System.Windows.Forms.ToolStripButton();
++            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
++            this.toolStripItemUndo = new System.Windows.Forms.ToolStripButton();
++            this.grpFactions.SuspendLayout();
++            this.pnlContainer.SuspendLayout();
++            this.grpGeneral.SuspendLayout();
++            this.grpAtWar.SuspendLayout();
++            this.toolStrip.SuspendLayout();
++            this.SuspendLayout();
++            //
++            // btnCancel
++            //
++            this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
++            this.btnCancel.Location = new System.Drawing.Point(307, 468);
++            this.btnCancel.Name = "btnCancel";
++            this.btnCancel.Padding = new System.Windows.Forms.Padding(5);
++            this.btnCancel.Size = new System.Drawing.Size(172, 27);
++            this.btnCancel.TabIndex = 24;
++            this.btnCancel.Text = "Cancel";
++            this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
++            //
++            // btnSave
++            //
++            this.btnSave.Location = new System.Drawing.Point(132, 468);
++            this.btnSave.Name = "btnSave";
++            this.btnSave.Padding = new System.Windows.Forms.Padding(5);
++            this.btnSave.Size = new System.Drawing.Size(169, 27);
++            this.btnSave.TabIndex = 23;
++            this.btnSave.Text = "Save";
++            this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
++            //
++            // grpFactions
++            //
++            this.grpFactions.BackColor = System.Drawing.Color.FromArgb(45, 45, 48);
++            this.grpFactions.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            this.grpFactions.Controls.Add(this.btnClearSearch);
++            this.grpFactions.Controls.Add(this.txtSearch);
++            this.grpFactions.Controls.Add(this.lstGameObjects);
++            this.grpFactions.ForeColor = System.Drawing.Color.Gainsboro;
++            this.grpFactions.Location = new System.Drawing.Point(12, 36);
++            this.grpFactions.Name = "grpFactions";
++            this.grpFactions.Size = new System.Drawing.Size(203, 426);
++            this.grpFactions.TabIndex = 22;
++            this.grpFactions.TabStop = false;
++            this.grpFactions.Text = "Factions";
++            //
++            // btnClearSearch
++            //
++            this.btnClearSearch.Location = new System.Drawing.Point(179, 16);
++            this.btnClearSearch.Name = "btnClearSearch";
++            this.btnClearSearch.Padding = new System.Windows.Forms.Padding(5);
++            this.btnClearSearch.Size = new System.Drawing.Size(18, 20);
++            this.btnClearSearch.TabIndex = 25;
++            this.btnClearSearch.Text = "X";
++            this.btnClearSearch.Click += new System.EventHandler(this.btnClearSearch_Click);
++            //
++            // txtSearch
++            //
++            this.txtSearch.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            this.txtSearch.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
++            this.txtSearch.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.txtSearch.Location = new System.Drawing.Point(6, 16);
++            this.txtSearch.Name = "txtSearch";
++            this.txtSearch.Size = new System.Drawing.Size(167, 20);
++            this.txtSearch.TabIndex = 24;
++            this.txtSearch.Text = "Search...";
++            this.txtSearch.Click += new System.EventHandler(this.txtSearch_Click);
++            this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
++            this.txtSearch.Enter += new System.EventHandler(this.txtSearch_Enter);
++            this.txtSearch.Leave += new System.EventHandler(this.txtSearch_Leave);
++            //
++            // lstGameObjects
++            //
++            this.lstGameObjects.AllowDrop = true;
++            this.lstGameObjects.BackColor = System.Drawing.Color.FromArgb(60, 63, 65);
++            this.lstGameObjects.BorderStyle = System.Windows.Forms.BorderStyle.None;
++            this.lstGameObjects.ForeColor = System.Drawing.Color.Gainsboro;
++            this.lstGameObjects.HideSelection = false;
++            this.lstGameObjects.ImageIndex = 0;
++            this.lstGameObjects.LineColor = System.Drawing.Color.FromArgb(150, 150, 150);
++            this.lstGameObjects.Location = new System.Drawing.Point(6, 42);
++            this.lstGameObjects.Name = "lstGameObjects";
++            this.lstGameObjects.SelectedImageIndex = 0;
++            this.lstGameObjects.Size = new System.Drawing.Size(191, 378);
++            this.lstGameObjects.TabIndex = 23;
++            //
++            // pnlContainer
++            //
++            this.pnlContainer.Controls.Add(this.grpGeneral);
++            this.pnlContainer.Controls.Add(this.grpAtWar);
++            this.pnlContainer.Location = new System.Drawing.Point(221, 36);
++            this.pnlContainer.Name = "pnlContainer";
++            this.pnlContainer.Size = new System.Drawing.Size(265, 426);
++            this.pnlContainer.TabIndex = 31;
++            this.pnlContainer.Visible = false;
++            //
++            // grpGeneral
++            //
++            this.grpGeneral.BackColor = System.Drawing.Color.FromArgb(45, 45, 48);
++            this.grpGeneral.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            this.grpGeneral.Controls.Add(this.btnAddFolder);
++            this.grpGeneral.Controls.Add(this.lblFolder);
++            this.grpGeneral.Controls.Add(this.cmbFolder);
++            this.grpGeneral.Controls.Add(this.lblName);
++            this.grpGeneral.Controls.Add(this.txtName);
++            this.grpGeneral.Controls.Add(this.lblLeaderPlayerId);
++            this.grpGeneral.Controls.Add(this.txtLeaderPlayerId);
++            this.grpGeneral.Controls.Add(this.lblWarCooldownHours);
++            this.grpGeneral.Controls.Add(this.nudWarCooldownHours);
++            this.grpGeneral.ForeColor = System.Drawing.Color.Gainsboro;
++            this.grpGeneral.Location = new System.Drawing.Point(7, 3);
++            this.grpGeneral.Name = "grpGeneral";
++            this.grpGeneral.Size = new System.Drawing.Size(250, 150);
++            this.grpGeneral.TabIndex = 34;
++            this.grpGeneral.TabStop = false;
++            this.grpGeneral.Text = "General";
++            //
++            // btnAddFolder
++            //
++            this.btnAddFolder.Location = new System.Drawing.Point(226, 44);
++            this.btnAddFolder.Name = "btnAddFolder";
++            this.btnAddFolder.Padding = new System.Windows.Forms.Padding(5);
++            this.btnAddFolder.Size = new System.Drawing.Size(18, 21);
++            this.btnAddFolder.TabIndex = 23;
++            this.btnAddFolder.Text = "+";
++            this.btnAddFolder.Click += new System.EventHandler(this.btnAddFolder_Click);
++            //
++            // lblFolder
++            //
++            this.lblFolder.AutoSize = true;
++            this.lblFolder.Location = new System.Drawing.Point(4, 48);
++            this.lblFolder.Name = "lblFolder";
++            this.lblFolder.Size = new System.Drawing.Size(39, 13);
++            this.lblFolder.TabIndex = 22;
++            this.lblFolder.Text = "Folder:";
++            //
++            // cmbFolder
++            //
++            this.cmbFolder.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            this.cmbFolder.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            this.cmbFolder.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
++            this.cmbFolder.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
++            this.cmbFolder.DrawDropdownHoverOutline = false;
++            this.cmbFolder.DrawFocusRectangle = false;
++            this.cmbFolder.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
++            this.cmbFolder.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
++            this.cmbFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
++            this.cmbFolder.ForeColor = System.Drawing.Color.Gainsboro;
++            this.cmbFolder.FormattingEnabled = true;
++            this.cmbFolder.Location = new System.Drawing.Point(57, 44);
++            this.cmbFolder.Name = "cmbFolder";
++            this.cmbFolder.Size = new System.Drawing.Size(159, 21);
++            this.cmbFolder.TabIndex = 21;
++            this.cmbFolder.Text = null;
++            this.cmbFolder.TextPadding = new System.Windows.Forms.Padding(2);
++            this.cmbFolder.SelectedIndexChanged += new System.EventHandler(this.cmbFolder_SelectedIndexChanged);
++            //
++            // lblName
++            //
++            this.lblName.AutoSize = true;
++            this.lblName.Location = new System.Drawing.Point(4, 20);
++            this.lblName.Name = "lblName";
++            this.lblName.Size = new System.Drawing.Size(38, 13);
++            this.lblName.TabIndex = 19;
++            this.lblName.Text = "Name:";
++            //
++            // txtName
++            //
++            this.txtName.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            this.txtName.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
++            this.txtName.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.txtName.Location = new System.Drawing.Point(57, 18);
++            this.txtName.Name = "txtName";
++            this.txtName.Size = new System.Drawing.Size(187, 20);
++            this.txtName.TabIndex = 18;
++            this.txtName.TextChanged += new System.EventHandler(this.txtName_TextChanged);
++            //
++            // lblLeaderPlayerId
++            //
++            this.lblLeaderPlayerId.AutoSize = true;
++            this.lblLeaderPlayerId.Location = new System.Drawing.Point(4, 76);
++            this.lblLeaderPlayerId.Name = "lblLeaderPlayerId";
++            this.lblLeaderPlayerId.Size = new System.Drawing.Size(90, 13);
++            this.lblLeaderPlayerId.TabIndex = 24;
++            this.lblLeaderPlayerId.Text = "Leader Player Id:";
++            //
++            // txtLeaderPlayerId
++            //
++            this.txtLeaderPlayerId.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            this.txtLeaderPlayerId.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
++            this.txtLeaderPlayerId.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.txtLeaderPlayerId.Location = new System.Drawing.Point(105, 74);
++            this.txtLeaderPlayerId.Name = "txtLeaderPlayerId";
++            this.txtLeaderPlayerId.Size = new System.Drawing.Size(139, 20);
++            this.txtLeaderPlayerId.TabIndex = 25;
++            this.txtLeaderPlayerId.TextChanged += new System.EventHandler(this.txtLeaderPlayerId_TextChanged);
++            //
++            // lblWarCooldownHours
++            //
++            this.lblWarCooldownHours.AutoSize = true;
++            this.lblWarCooldownHours.Location = new System.Drawing.Point(4, 104);
++            this.lblWarCooldownHours.Name = "lblWarCooldownHours";
++            this.lblWarCooldownHours.Size = new System.Drawing.Size(120, 13);
++            this.lblWarCooldownHours.TabIndex = 26;
++            this.lblWarCooldownHours.Text = "War Cooldown (Hrs):";
++            //
++            // nudWarCooldownHours
++            //
++            this.nudWarCooldownHours.Location = new System.Drawing.Point(130, 102);
++            this.nudWarCooldownHours.Maximum = new decimal(new int[] { 720, 0, 0, 0 });
++            this.nudWarCooldownHours.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
++            this.nudWarCooldownHours.Name = "nudWarCooldownHours";
++            this.nudWarCooldownHours.Size = new System.Drawing.Size(114, 20);
++            this.nudWarCooldownHours.TabIndex = 27;
++            this.nudWarCooldownHours.Value = new decimal(new int[] { 1, 0, 0, 0 });
++            this.nudWarCooldownHours.ValueChanged += new System.EventHandler(this.nudWarCooldownHours_ValueChanged);
++            //
++            // grpAtWar
++            //
++            this.grpAtWar.BackColor = System.Drawing.Color.FromArgb(45, 45, 48);
++            this.grpAtWar.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            this.grpAtWar.Controls.Add(this.btnRemoveAtWar);
++            this.grpAtWar.Controls.Add(this.btnAddAtWar);
++            this.grpAtWar.Controls.Add(this.cmbAtWar);
++            this.grpAtWar.Controls.Add(this.lblAddAtWar);
++            this.grpAtWar.Controls.Add(this.lstAtWar);
++            this.grpAtWar.ForeColor = System.Drawing.Color.Gainsboro;
++            this.grpAtWar.Location = new System.Drawing.Point(7, 159);
++            this.grpAtWar.Name = "grpAtWar";
++            this.grpAtWar.Size = new System.Drawing.Size(250, 261);
++            this.grpAtWar.TabIndex = 33;
++            this.grpAtWar.TabStop = false;
++            this.grpAtWar.Text = "At War With";
++            //
++            // btnRemoveAtWar
++            //
++            this.btnRemoveAtWar.Location = new System.Drawing.Point(7, 227);
++            this.btnRemoveAtWar.Name = "btnRemoveAtWar";
++            this.btnRemoveAtWar.Padding = new System.Windows.Forms.Padding(5);
++            this.btnRemoveAtWar.Size = new System.Drawing.Size(237, 23);
++            this.btnRemoveAtWar.TabIndex = 53;
++            this.btnRemoveAtWar.Text = "Remove Selected";
++            this.btnRemoveAtWar.Click += new System.EventHandler(this.btnRemoveAtWar_Click);
++            //
++            // btnAddAtWar
++            //
++            this.btnAddAtWar.Location = new System.Drawing.Point(7, 198);
++            this.btnAddAtWar.Name = "btnAddAtWar";
++            this.btnAddAtWar.Padding = new System.Windows.Forms.Padding(5);
++            this.btnAddAtWar.Size = new System.Drawing.Size(237, 23);
++            this.btnAddAtWar.TabIndex = 50;
++            this.btnAddAtWar.Text = "Add Selected";
++            this.btnAddAtWar.Click += new System.EventHandler(this.btnAddAtWar_Click);
++            //
++            // cmbAtWar
++            //
++            this.cmbAtWar.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            this.cmbAtWar.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            this.cmbAtWar.BorderStyle = System.Windows.Forms.ButtonBorderStyle.Solid;
++            this.cmbAtWar.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
++            this.cmbAtWar.DrawDropdownHoverOutline = false;
++            this.cmbAtWar.DrawFocusRectangle = false;
++            this.cmbAtWar.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
++            this.cmbAtWar.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
++            this.cmbAtWar.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
++            this.cmbAtWar.ForeColor = System.Drawing.Color.Gainsboro;
++            this.cmbAtWar.FormattingEnabled = true;
++            this.cmbAtWar.Location = new System.Drawing.Point(7, 171);
++            this.cmbAtWar.Name = "cmbAtWar";
++            this.cmbAtWar.Size = new System.Drawing.Size(237, 21);
++            this.cmbAtWar.TabIndex = 49;
++            this.cmbAtWar.Text = null;
++            this.cmbAtWar.TextPadding = new System.Windows.Forms.Padding(2);
++            //
++            // lblAddAtWar
++            //
++            this.lblAddAtWar.AutoSize = true;
++            this.lblAddAtWar.Location = new System.Drawing.Point(6, 155);
++            this.lblAddAtWar.Name = "lblAddAtWar";
++            this.lblAddAtWar.Size = new System.Drawing.Size(121, 13);
++            this.lblAddAtWar.TabIndex = 48;
++            this.lblAddAtWar.Text = "Declare War On:";
++            //
++            // lstAtWar
++            //
++            this.lstAtWar.BackColor = System.Drawing.Color.FromArgb(60, 63, 65);
++            this.lstAtWar.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
++            this.lstAtWar.ForeColor = System.Drawing.Color.Gainsboro;
++            this.lstAtWar.FormattingEnabled = true;
++            this.lstAtWar.Location = new System.Drawing.Point(6, 19);
++            this.lstAtWar.Name = "lstAtWar";
++            this.lstAtWar.Size = new System.Drawing.Size(237, 123);
++            this.lstAtWar.TabIndex = 47;
++            //
++            // toolStrip
++            //
++            this.toolStrip.AutoSize = false;
++            this.toolStrip.BackColor = System.Drawing.Color.FromArgb(45, 45, 48);
++            this.toolStrip.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.toolStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
++            this.toolStripItemNew,
++            this.toolStripSeparator1,
++            this.toolStripItemDelete,
++            this.toolStripSeparator2,
++            this.btnAlphabetical,
++            this.toolStripSeparator4,
++            this.toolStripItemCopy,
++            this.toolStripItemPaste,
++            this.toolStripSeparator3,
++            this.toolStripItemUndo});
++            this.toolStrip.Location = new System.Drawing.Point(0, 0);
++            this.toolStrip.Name = "toolStrip";
++            this.toolStrip.Padding = new System.Windows.Forms.Padding(5, 0, 1, 0);
++            this.toolStrip.Size = new System.Drawing.Size(491, 25);
++            this.toolStrip.TabIndex = 43;
++            this.toolStrip.Text = "toolStrip1";
++            //
++            // toolStripItemNew (text-only — no icon resource file for this new form)
++            //
++            this.toolStripItemNew.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
++            this.toolStripItemNew.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.toolStripItemNew.Name = "toolStripItemNew";
++            this.toolStripItemNew.Size = new System.Drawing.Size(35, 22);
++            this.toolStripItemNew.Text = "New";
++            this.toolStripItemNew.Click += new System.EventHandler(this.toolStripItemNew_Click);
++            //
++            // toolStripSeparator1
++            //
++            this.toolStripSeparator1.Name = "toolStripSeparator1";
++            this.toolStripSeparator1.Size = new System.Drawing.Size(6, 25);
++            //
++            // toolStripItemDelete
++            //
++            this.toolStripItemDelete.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
++            this.toolStripItemDelete.Enabled = false;
++            this.toolStripItemDelete.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.toolStripItemDelete.Name = "toolStripItemDelete";
++            this.toolStripItemDelete.Size = new System.Drawing.Size(45, 22);
++            this.toolStripItemDelete.Text = "Delete";
++            this.toolStripItemDelete.Click += new System.EventHandler(this.toolStripItemDelete_Click);
++            //
++            // toolStripSeparator2
++            //
++            this.toolStripSeparator2.Name = "toolStripSeparator2";
++            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 25);
++            //
++            // btnAlphabetical
++            //
++            this.btnAlphabetical.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
++            this.btnAlphabetical.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.btnAlphabetical.Name = "btnAlphabetical";
++            this.btnAlphabetical.Size = new System.Drawing.Size(23, 22);
++            this.btnAlphabetical.Text = "A-Z";
++            this.btnAlphabetical.Click += new System.EventHandler(this.btnAlphabetical_Click);
++            //
++            // toolStripSeparator4
++            //
++            this.toolStripSeparator4.Name = "toolStripSeparator4";
++            this.toolStripSeparator4.Size = new System.Drawing.Size(6, 25);
++            //
++            // toolStripItemCopy
++            //
++            this.toolStripItemCopy.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
++            this.toolStripItemCopy.Enabled = false;
++            this.toolStripItemCopy.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.toolStripItemCopy.Name = "toolStripItemCopy";
++            this.toolStripItemCopy.Size = new System.Drawing.Size(42, 22);
++            this.toolStripItemCopy.Text = "Copy";
++            this.toolStripItemCopy.Click += new System.EventHandler(this.toolStripItemCopy_Click);
++            //
++            // toolStripItemPaste
++            //
++            this.toolStripItemPaste.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
++            this.toolStripItemPaste.Enabled = false;
++            this.toolStripItemPaste.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.toolStripItemPaste.Name = "toolStripItemPaste";
++            this.toolStripItemPaste.Size = new System.Drawing.Size(42, 22);
++            this.toolStripItemPaste.Text = "Paste";
++            this.toolStripItemPaste.Click += new System.EventHandler(this.toolStripItemPaste_Click);
++            //
++            // toolStripSeparator3
++            //
++            this.toolStripSeparator3.Name = "toolStripSeparator3";
++            this.toolStripSeparator3.Size = new System.Drawing.Size(6, 25);
++            //
++            // toolStripItemUndo
++            //
++            this.toolStripItemUndo.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
++            this.toolStripItemUndo.Enabled = false;
++            this.toolStripItemUndo.ForeColor = System.Drawing.Color.FromArgb(220, 220, 220);
++            this.toolStripItemUndo.Name = "toolStripItemUndo";
++            this.toolStripItemUndo.Size = new System.Drawing.Size(42, 22);
++            this.toolStripItemUndo.Text = "Undo";
++            this.toolStripItemUndo.Click += new System.EventHandler(this.toolStripItemUndo_Click);
++            //
++            // FrmFactions
++            //
++            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
++            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
++            this.AutoSize = true;
++            this.BackColor = System.Drawing.Color.FromArgb(45, 45, 48);
++            this.ClientSize = new System.Drawing.Size(491, 507);
++            this.ControlBox = true;
++            this.Controls.Add(this.toolStrip);
++            this.Controls.Add(this.pnlContainer);
++            this.Controls.Add(this.btnCancel);
++            this.Controls.Add(this.btnSave);
++            this.Controls.Add(this.grpFactions);
++            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
++            this.KeyPreview = true;
++            this.MaximizeBox = false;
++            this.MinimizeBox = false;
++            this.Name = "FrmFactions";
++            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
++            this.Text = "Faction Editor";
++            FormClosed += FrmFactions_FormClosed;
++            this.Load += new System.EventHandler(this.frmFactions_Load);
++            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.form_KeyDown);
++            this.grpFactions.ResumeLayout(false);
++            this.grpFactions.PerformLayout();
++            this.pnlContainer.ResumeLayout(false);
++            this.grpGeneral.ResumeLayout(false);
++            this.grpGeneral.PerformLayout();
++            this.grpAtWar.ResumeLayout(false);
++            this.grpAtWar.PerformLayout();
++            this.toolStrip.ResumeLayout(false);
++            this.toolStrip.PerformLayout();
++            this.ResumeLayout(false);
++        }
++
++        #endregion
++
++        private DarkButton btnCancel;
++        private DarkButton btnSave;
++        private DarkGroupBox grpFactions;
++        private System.Windows.Forms.Panel pnlContainer;
++        private DarkGroupBox grpAtWar;
++        private DarkToolStrip toolStrip;
++        private System.Windows.Forms.ToolStripButton toolStripItemNew;
++        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
++        private System.Windows.Forms.ToolStripButton toolStripItemDelete;
++        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
++        public System.Windows.Forms.ToolStripButton toolStripItemCopy;
++        public System.Windows.Forms.ToolStripButton toolStripItemPaste;
++        private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
++        public System.Windows.Forms.ToolStripButton toolStripItemUndo;
++        private DarkGroupBox grpGeneral;
++        private System.Windows.Forms.Label lblName;
++        private DarkTextBox txtName;
++        private DarkButton btnClearSearch;
++        private DarkTextBox txtSearch;
++        private DarkButton btnAddFolder;
++        private System.Windows.Forms.Label lblFolder;
++        private DarkComboBox cmbFolder;
++        private System.Windows.Forms.ToolStripButton btnAlphabetical;
++        private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
++        private Controls.GameObjectList lstGameObjects;
++        private System.Windows.Forms.Label lblLeaderPlayerId;
++        private DarkTextBox txtLeaderPlayerId;
++        private System.Windows.Forms.Label lblWarCooldownHours;
++        private DarkNumericUpDown nudWarCooldownHours;
++        private DarkButton btnAddAtWar;
++        private DarkComboBox cmbAtWar;
++        private System.Windows.Forms.Label lblAddAtWar;
++        private System.Windows.Forms.ListBox lstAtWar;
++        private DarkButton btnRemoveAtWar;
++    }
++}
+diff -ruN a/Intersect.Editor/Forms/Editors/frmFactions.cs b/Intersect.Editor/Forms/Editors/frmFactions.cs
+--- a/Intersect.Editor/Forms/Editors/frmFactions.cs	1970-01-01 00:00:00.000000000 +0000
++++ b/Intersect.Editor/Forms/Editors/frmFactions.cs	2026-09-10 21:37:25.168446260 +0000
+@@ -0,0 +1,406 @@
++using DarkUI.Forms;
++using Intersect.Editor.Core;
++using Intersect.Editor.General;
++using Intersect.Editor.Localization;
++using Intersect.Editor.Networking;
++using Intersect.Enums;
++using Intersect.Framework.Core.GameObjects.Factions;
++using Intersect.Models;
++
++namespace Intersect.Editor.Forms.Editors;
++
++public partial class FrmFactions : EditorForm
++{
++    private List<FactionDescriptor> mChanged = new List<FactionDescriptor>();
++
++    private string mCopiedItem;
++
++    private FactionDescriptor mEditorItem;
++
++    private List<string> mKnownFolders = new List<string>();
++
++    public FrmFactions()
++    {
++        ApplyHooks();
++        InitializeComponent();
++        Icon = Program.Icon;
++        _btnSave = btnSave;
++        _btnCancel = btnCancel;
++
++        lstGameObjects.Init(UpdateToolStripItems, AssignEditorItem, toolStripItemNew_Click, toolStripItemCopy_Click, toolStripItemUndo_Click, toolStripItemPaste_Click, toolStripItemDelete_Click);
++    }
++
++    private void AssignEditorItem(Guid id)
++    {
++        mEditorItem = FactionDescriptor.Get(id);
++        UpdateEditor();
++    }
++
++    protected override void GameObjectUpdatedDelegate(GameObjectType type)
++    {
++        if (type == GameObjectType.Faction)
++        {
++            InitEditor();
++            if (mEditorItem != null && !DatabaseObject<FactionDescriptor>.Lookup.Values.Contains(mEditorItem))
++            {
++                mEditorItem = null;
++                UpdateEditor();
++            }
++        }
++    }
++
++    private void UpdateEditor()
++    {
++        if (mEditorItem != null)
++        {
++            pnlContainer.Show();
++
++            txtName.Text = mEditorItem.Name;
++            cmbFolder.Text = mEditorItem.Folder;
++
++            txtLeaderPlayerId.Text = mEditorItem.LeaderPlayerId?.ToString() ?? string.Empty;
++            nudWarCooldownHours.Value = mEditorItem.WarCooldownHours;
++
++            UpdateAtWarList();
++
++            if (mChanged.IndexOf(mEditorItem) == -1)
++            {
++                mChanged.Add(mEditorItem);
++                mEditorItem.MakeBackup();
++            }
++        }
++        else
++        {
++            pnlContainer.Hide();
++        }
++
++        var hasItem = mEditorItem != null;
++        UpdateEditorButtons(hasItem);
++        UpdateToolStripItems();
++    }
++
++    private void txtName_TextChanged(object sender, EventArgs e)
++    {
++        mEditorItem.Name = txtName.Text;
++        lstGameObjects.UpdateText(txtName.Text);
++    }
++
++    private void txtLeaderPlayerId_TextChanged(object sender, EventArgs e)
++    {
++        mEditorItem.LeaderPlayerId = Guid.TryParse(txtLeaderPlayerId.Text, out var leaderId) ? leaderId : (Guid?)null;
++    }
++
++    private void nudWarCooldownHours_ValueChanged(object sender, EventArgs e)
++    {
++        mEditorItem.WarCooldownHours = (int)nudWarCooldownHours.Value;
++    }
++
++    private void FrmFactions_FormClosed(object sender, FormClosedEventArgs e)
++    {
++        btnCancel_Click(null, null);
++    }
++
++    private void btnCancel_Click(object sender, EventArgs e)
++    {
++        foreach (var item in mChanged)
++        {
++            item.RestoreBackup();
++            item.DeleteBackup();
++        }
++
++        Hide();
++        Globals.CurrentEditor = -1;
++        Dispose();
++    }
++
++    private void btnSave_Click(object sender, EventArgs e)
++    {
++        foreach (var item in mChanged)
++        {
++            PacketSender.SendSaveObject(item);
++            item.DeleteBackup();
++        }
++
++        Hide();
++        Globals.CurrentEditor = -1;
++        Dispose();
++    }
++
++    private void toolStripItemNew_Click(object sender, EventArgs e)
++    {
++        PacketSender.SendCreateObject(GameObjectType.Faction);
++    }
++
++    private void toolStripItemDelete_Click(object sender, EventArgs e)
++    {
++        if (mEditorItem != null && lstGameObjects.Focused)
++        {
++            if (DarkMessageBox.ShowWarning(
++                    Strings.FactionEditor.deleteprompt, Strings.FactionEditor.delete,
++                    DarkDialogButton.YesNo, Icon
++                ) ==
++                DialogResult.Yes)
++            {
++                PacketSender.SendDeleteObject(mEditorItem);
++            }
++        }
++    }
++
++    private void toolStripItemCopy_Click(object sender, EventArgs e)
++    {
++        if (mEditorItem != null && lstGameObjects.Focused)
++        {
++            mCopiedItem = mEditorItem.JsonData;
++            toolStripItemPaste.Enabled = true;
++        }
++    }
++
++    private void toolStripItemPaste_Click(object sender, EventArgs e)
++    {
++        if (mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused)
++        {
++            mEditorItem.Load(mCopiedItem, true);
++            UpdateEditor();
++        }
++    }
++
++    private void toolStripItemUndo_Click(object sender, EventArgs e)
++    {
++        if (mChanged.Contains(mEditorItem) && mEditorItem != null)
++        {
++            if (DarkMessageBox.ShowWarning(
++                    Strings.FactionEditor.undoprompt, Strings.FactionEditor.undotitle,
++                    DarkDialogButton.YesNo, Icon
++                ) ==
++                DialogResult.Yes)
++            {
++                mEditorItem.RestoreBackup();
++                UpdateEditor();
++            }
++        }
++    }
++
++    private void UpdateToolStripItems()
++    {
++        toolStripItemCopy.Enabled = mEditorItem != null && lstGameObjects.Focused;
++        toolStripItemPaste.Enabled = mEditorItem != null && mCopiedItem != null && lstGameObjects.Focused;
++        toolStripItemDelete.Enabled = mEditorItem != null && lstGameObjects.Focused;
++        toolStripItemUndo.Enabled = mEditorItem != null && lstGameObjects.Focused;
++    }
++
++    private void lstGameObjects_FocusChanged(object sender, EventArgs e)
++    {
++        UpdateToolStripItems();
++    }
++
++    private void form_KeyDown(object sender, KeyEventArgs e)
++    {
++        if (e.Control)
++        {
++            if (e.KeyCode == Keys.N)
++            {
++                toolStripItemNew_Click(null, null);
++            }
++        }
++    }
++
++    private void frmFactions_Load(object sender, EventArgs e)
++    {
++        UpdateEditor();
++        RefreshAtWarCombo();
++        InitLocalization();
++    }
++
++    private void InitLocalization()
++    {
++        Text = Strings.FactionEditor.title;
++        toolStripItemNew.Text = Strings.FactionEditor.New;
++        toolStripItemDelete.Text = Strings.FactionEditor.delete;
++        toolStripItemCopy.Text = Strings.FactionEditor.copy;
++        toolStripItemPaste.Text = Strings.FactionEditor.paste;
++        toolStripItemUndo.Text = Strings.FactionEditor.undo;
++
++        grpFactions.Text = Strings.FactionEditor.factions;
++        grpGeneral.Text = Strings.FactionEditor.general;
++        lblName.Text = Strings.FactionEditor.name;
++        lblLeaderPlayerId.Text = Strings.FactionEditor.leaderplayerid;
++        lblWarCooldownHours.Text = Strings.FactionEditor.warcooldownhours;
++
++        grpAtWar.Text = Strings.FactionEditor.atwarwith;
++        lblAddAtWar.Text = Strings.FactionEditor.addatwarlabel;
++        btnAddAtWar.Text = Strings.FactionEditor.add;
++        btnRemoveAtWar.Text = Strings.FactionEditor.remove;
++
++        btnAlphabetical.ToolTipText = Strings.FactionEditor.sortalphabetically;
++        txtSearch.Text = Strings.FactionEditor.searchplaceholder;
++        lblFolder.Text = Strings.FactionEditor.folderlabel;
++
++        btnSave.Text = Strings.FactionEditor.save;
++        btnCancel.Text = Strings.FactionEditor.cancel;
++    }
++
++    private void RefreshAtWarCombo()
++    {
++        cmbAtWar.Items.Clear();
++        cmbAtWar.Items.AddRange(FactionDescriptor.Names);
++    }
++
++    public void UpdateAtWarList()
++    {
++        lstAtWar.Items.Clear();
++        foreach (var id in mEditorItem.AtWarWith)
++        {
++            lstAtWar.Items.Add(FactionDescriptor.GetName(id));
++        }
++    }
++
++    private void btnAddAtWar_Click(object sender, EventArgs e)
++    {
++        if (cmbAtWar.SelectedIndex < 0)
++        {
++            return;
++        }
++
++        var id = FactionDescriptor.IdFromList(cmbAtWar.SelectedIndex);
++        if (id != mEditorItem.Id && !mEditorItem.AtWarWith.Contains(id))
++        {
++            mEditorItem.AtWarWith.Add(id);
++            var other = FactionDescriptor.Get(id);
++            if (other != null && !other.AtWarWith.Contains(mEditorItem.Id))
++            {
++                other.AtWarWith.Add(mEditorItem.Id);
++                if (mChanged.IndexOf(other) == -1)
++                {
++                    mChanged.Add(other);
++                    other.MakeBackup();
++                }
++            }
++
++            UpdateAtWarList();
++        }
++    }
++
++    private void btnRemoveAtWar_Click(object sender, EventArgs e)
++    {
++        if (lstAtWar.SelectedIndex > -1)
++        {
++            var id = mEditorItem.AtWarWith[lstAtWar.SelectedIndex];
++            mEditorItem.AtWarWith.RemoveAt(lstAtWar.SelectedIndex);
++
++            var other = FactionDescriptor.Get(id);
++            if (other != null && other.AtWarWith.Remove(mEditorItem.Id))
++            {
++                if (mChanged.IndexOf(other) == -1)
++                {
++                    mChanged.Add(other);
++                    other.MakeBackup();
++                }
++            }
++
++            UpdateAtWarList();
++        }
++    }
++
++    #region "Item List - Folders, Searching, Sorting, Etc"
++
++    public void InitEditor()
++    {
++        var mFolders = new List<string>();
++        foreach (var itm in FactionDescriptor.Lookup)
++        {
++            if (!string.IsNullOrEmpty(((FactionDescriptor)itm.Value).Folder) &&
++                !mFolders.Contains(((FactionDescriptor)itm.Value).Folder))
++            {
++                mFolders.Add(((FactionDescriptor)itm.Value).Folder);
++                if (!mKnownFolders.Contains(((FactionDescriptor)itm.Value).Folder))
++                {
++                    mKnownFolders.Add(((FactionDescriptor)itm.Value).Folder);
++                }
++            }
++        }
++
++        mFolders.Sort();
++        mKnownFolders.Sort();
++        cmbFolder.Items.Clear();
++        cmbFolder.Items.Add("");
++        cmbFolder.Items.AddRange(mKnownFolders.ToArray());
++
++        var items = FactionDescriptor.Lookup.OrderBy(p => p.Value?.Name).Select(pair => new KeyValuePair<Guid, KeyValuePair<string, string>>(pair.Key,
++            new KeyValuePair<string, string>(((FactionDescriptor)pair.Value)?.Name ?? DatabaseObject<FactionDescriptor>.Deleted, ((FactionDescriptor)pair.Value)?.Folder ?? ""))).ToArray();
++        lstGameObjects.Repopulate(items, mFolders, btnAlphabetical.Checked, CustomSearch(), txtSearch.Text);
++
++        RefreshAtWarCombo();
++    }
++
++    private void btnAddFolder_Click(object sender, EventArgs e)
++    {
++        var folderName = string.Empty;
++        var result = DarkInputBox.ShowInformation(
++            Strings.FactionEditor.folderprompt, Strings.FactionEditor.foldertitle, ref folderName,
++            DarkDialogButton.OkCancel
++        );
++
++        if (result == DialogResult.OK && !string.IsNullOrEmpty(folderName))
++        {
++            if (!cmbFolder.Items.Contains(folderName))
++            {
++                mEditorItem.Folder = folderName;
++                lstGameObjects.ExpandFolder(folderName);
++                InitEditor();
++                cmbFolder.Text = folderName;
++            }
++        }
++    }
++
++    private void cmbFolder_SelectedIndexChanged(object sender, EventArgs e)
++    {
++        mEditorItem.Folder = cmbFolder.Text;
++        InitEditor();
++    }
++
++    private void btnAlphabetical_Click(object sender, EventArgs e)
++    {
++        btnAlphabetical.Checked = !btnAlphabetical.Checked;
++        InitEditor();
++    }
++
++    private void txtSearch_TextChanged(object sender, EventArgs e)
++    {
++        InitEditor();
++    }
++
++    private void txtSearch_Leave(object sender, EventArgs e)
++    {
++        if (string.IsNullOrWhiteSpace(txtSearch.Text))
++        {
++            txtSearch.Text = Strings.FactionEditor.searchplaceholder;
++        }
++    }
++
++    private void txtSearch_Enter(object sender, EventArgs e)
++    {
++        txtSearch.SelectAll();
++        txtSearch.Focus();
++    }
++
++    private void btnClearSearch_Click(object sender, EventArgs e)
++    {
++        txtSearch.Text = Strings.FactionEditor.searchplaceholder;
++    }
++
++    private bool CustomSearch()
++    {
++        return !string.IsNullOrWhiteSpace(txtSearch.Text) &&
++               txtSearch.Text != Strings.FactionEditor.searchplaceholder;
++    }
++
++    private void txtSearch_Click(object sender, EventArgs e)
++    {
++        if (txtSearch.Text == Strings.FactionEditor.searchplaceholder)
++        {
++            txtSearch.SelectAll();
++        }
++    }
++
++    #endregion
++}
+diff -ruN a/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs b/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs
+--- a/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs	2026-09-10 20:43:21.952074794 +0000
++++ b/Intersect.Editor/Forms/Editors/frmNpc.Designer.cs	2026-09-10 20:42:51.648507654 +0000
+@@ -105,6 +105,8 @@
+             cmbDamageType = new DarkComboBox();
+             lblDamageType = new Label();
+             cmbElement = new DarkComboBox();
++            cmbFaction = new DarkComboBox();
++            lblFaction = new Label();
+             lblElement = new Label();
+             lblCritChance = new Label();
+             cmbAttackAnimation = new DarkComboBox();
+@@ -805,6 +807,8 @@
+             pnlContainer.Controls.Add(grpImmunities);
+             pnlContainer.Controls.Add(grpCombat);
+             pnlContainer.Controls.Add(cmbElement);
++            pnlContainer.Controls.Add(cmbFaction);
++            pnlContainer.Controls.Add(lblFaction);
+             pnlContainer.Controls.Add(lblElement);
+             pnlContainer.Controls.Add(grpCommonEvents);
+             pnlContainer.Controls.Add(grpBehavior);
+@@ -1220,6 +1224,39 @@
+             cmbElement.TextPadding = new Padding(2);
+             cmbElement.SelectedIndexChanged += cmbElement_SelectedIndexChanged;
+             //
++            // cmbFaction
++            //
++            cmbFaction.BackColor = System.Drawing.Color.FromArgb(69, 73, 74);
++            cmbFaction.BorderColor = System.Drawing.Color.FromArgb(90, 90, 90);
++            cmbFaction.BorderStyle = ButtonBorderStyle.Solid;
++            cmbFaction.ButtonColor = System.Drawing.Color.FromArgb(43, 43, 43);
++            cmbFaction.DrawDropdownHoverOutline = false;
++            cmbFaction.DrawFocusRectangle = false;
++            cmbFaction.DrawMode = DrawMode.OwnerDrawFixed;
++            cmbFaction.DropDownStyle = ComboBoxStyle.DropDownList;
++            cmbFaction.FlatStyle = FlatStyle.Flat;
++            cmbFaction.ForeColor = System.Drawing.Color.Gainsboro;
++            cmbFaction.FormattingEnabled = true;
++            cmbFaction.Items.AddRange(new object[] { "None" });
++            cmbFaction.Location = new System.Drawing.Point(536, 798);
++            cmbFaction.Margin = new Padding(4, 3, 4, 3);
++            cmbFaction.Name = "cmbFaction";
++            cmbFaction.Size = new Size(298, 24);
++            cmbFaction.TabIndex = 202;
++            cmbFaction.Text = "None";
++            cmbFaction.TextPadding = new Padding(2);
++            cmbFaction.SelectedIndexChanged += cmbFaction_SelectedIndexChanged;
++            //
++            // lblFaction
++            //
++            lblFaction.AutoSize = true;
++            lblFaction.Location = new System.Drawing.Point(532, 779);
++            lblFaction.Margin = new Padding(4, 0, 4, 0);
++            lblFaction.Name = "lblFaction";
++            lblFaction.Size = new Size(81, 15);
++            lblFaction.TabIndex = 203;
++            lblFaction.Text = "Faction:";
++            //
+             // lblElement
+             //
+             lblElement.AutoSize = true;
+@@ -2298,6 +2335,8 @@
+         private System.Windows.Forms.Label lblScaling;
+         private DarkComboBox cmbDamageType;
+         private DarkComboBox cmbElement;
++        private DarkComboBox cmbFaction;
++        private System.Windows.Forms.Label lblFaction;
+         private System.Windows.Forms.Label lblElement;
+         private System.Windows.Forms.Label lblDamageType;
+         private System.Windows.Forms.Label lblCritChance;
+diff -ruN a/Intersect.Editor/Forms/Editors/frmNpc.cs b/Intersect.Editor/Forms/Editors/frmNpc.cs
+--- a/Intersect.Editor/Forms/Editors/frmNpc.cs	2026-09-10 20:43:21.094371373 +0000
++++ b/Intersect.Editor/Forms/Editors/frmNpc.cs	2026-09-10 20:42:33.371044362 +0000
+@@ -9,6 +9,7 @@
+ using Intersect.Enums;
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Events;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.NPCs;
+ using Intersect.GameObjects;
+@@ -246,6 +247,10 @@
+             cmbElement.Items.Add(Strings.Combat.elementtypes[i]);
+         }
+ 
++        cmbFaction.Items.Clear();
++        cmbFaction.Items.Add("None");
++        cmbFaction.Items.AddRange(FactionDescriptor.Names);
++
+         lblScalingStat.Text = Strings.NpcEditor.scalingstat;
+         lblScaling.Text = Strings.NpcEditor.scalingamount;
+         lblAttackAnimation.Text = Strings.NpcEditor.attackanimation;
+@@ -327,6 +332,7 @@
+             nudScaling.Value = mEditorItem.Scaling;
+             cmbDamageType.SelectedIndex = mEditorItem.DamageType;
+             cmbElement.SelectedIndex = mEditorItem.Element;
++            cmbFaction.SelectedIndex = mEditorItem.FactionId.HasValue ? FactionDescriptor.ListIndex(mEditorItem.FactionId.Value) + 1 : 0;
+             cmbScalingStat.SelectedIndex = mEditorItem.ScalingStat;
+             cmbAttackAnimation.SelectedIndex = AnimationDescriptor.ListIndex(mEditorItem.AttackAnimationId) + 1;
+             cmbAttackSpeedModifier.SelectedIndex = mEditorItem.AttackSpeedModifier;
+@@ -633,6 +639,13 @@
+         mEditorItem.Element = cmbElement.SelectedIndex;
+     }
+ 
++    private void cmbFaction_SelectedIndexChanged(object sender, EventArgs e)
++    {
++        mEditorItem.FactionId = cmbFaction.SelectedIndex < 1
++            ? (Guid?)null
++            : FactionDescriptor.IdFromList(cmbFaction.SelectedIndex - 1);
++    }
++
+     private void cmbScalingStat_SelectedIndexChanged(object sender, EventArgs e)
+     {
+         mEditorItem.ScalingStat = cmbScalingStat.SelectedIndex;
+diff -ruN a/Intersect.Editor/Forms/frmMain.Designer.cs b/Intersect.Editor/Forms/frmMain.Designer.cs
+--- a/Intersect.Editor/Forms/frmMain.Designer.cs	2026-09-10 20:43:21.100934803 +0000
++++ b/Intersect.Editor/Forms/frmMain.Designer.cs	2026-09-10 21:36:28.906645777 +0000
+@@ -107,6 +107,7 @@
+             this.commonEventEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.craftsEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.craftingTableEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
++            this.factionEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.itemEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.npcEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+             this.projectileEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+@@ -809,6 +810,7 @@
+             this.commonEventEditorToolStripMenuItem,
+             this.craftsEditorToolStripMenuItem,
+             this.craftingTableEditorToolStripMenuItem,
++            this.factionEditorToolStripMenuItem,
+             this.itemEditorToolStripMenuItem,
+             this.npcEditorToolStripMenuItem,
+             this.projectileEditorToolStripMenuItem,
+@@ -863,6 +865,14 @@
+             this.craftingTableEditorToolStripMenuItem.Text = "Crafting Table Editor";
+             this.craftingTableEditorToolStripMenuItem.Click += new System.EventHandler(this.craftingTablesEditorToolStripMenuItem_Click);
+             // 
++            // factionEditorToolStripMenuItem
++            // 
++            this.factionEditorToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
++            this.factionEditorToolStripMenuItem.Name = "factionEditorToolStripMenuItem";
++            this.factionEditorToolStripMenuItem.Size = new System.Drawing.Size(191, 22);
++            this.factionEditorToolStripMenuItem.Text = "Faction Editor";
++            this.factionEditorToolStripMenuItem.Click += new System.EventHandler(this.factionEditorToolStripMenuItem_Click);
++            // 
+             // itemEditorToolStripMenuItem
+             // 
+             this.itemEditorToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+@@ -1101,6 +1111,7 @@
+ 		private ToolStripMenuItem classEditorToolStripMenuItem;
+ 		private ToolStripMenuItem commonEventEditorToolStripMenuItem;
+ 		private ToolStripMenuItem craftingTableEditorToolStripMenuItem;
++		private ToolStripMenuItem factionEditorToolStripMenuItem;
+ 		private ToolStripMenuItem itemEditorToolStripMenuItem;
+ 		private ToolStripMenuItem npcEditorToolStripMenuItem;
+ 		private ToolStripMenuItem projectileEditorToolStripMenuItem;
+diff -ruN a/Intersect.Editor/Forms/frmMain.cs b/Intersect.Editor/Forms/frmMain.cs
+--- a/Intersect.Editor/Forms/frmMain.cs	2026-09-10 20:43:21.101525946 +0000
++++ b/Intersect.Editor/Forms/frmMain.cs	2026-09-10 21:36:38.653634324 +0000
+@@ -50,6 +50,7 @@
+     private FrmCommonEvent mCommonEventEditor;
+ 
+     private FrmCraftingTables mCraftingTablesEditor;
++    private FrmFactions mFactionEditor;
+ 
+     private FrmCrafts mCraftsEditor;
+ 
+@@ -1252,6 +1253,11 @@
+         PacketSender.SendOpenEditor(GameObjectType.CraftTables);
+     }
+ 
++    private void factionEditorToolStripMenuItem_Click(object sender, EventArgs e)
++    {
++        PacketSender.SendOpenEditor(GameObjectType.Faction);
++    }
++
+     private void craftsEditorToolStripMenuItem_Click(object sender, EventArgs e)
+     {
+         PacketSender.SendOpenEditor(GameObjectType.Crafts);
+@@ -1658,6 +1664,15 @@
+                     }
+ 
+                     break;
++                case GameObjectType.Faction:
++                    if (mFactionEditor == null || mFactionEditor.Visible == false)
++                    {
++                        mFactionEditor = new FrmFactions();
++                        mFactionEditor.InitEditor();
++                        mFactionEditor.Show();
++                    }
++
++                    break;
+                 case GameObjectType.Crafts:
+                     if (mCraftsEditor == null || mCraftsEditor.Visible == false)
+                     {
+diff -ruN a/Intersect.Editor/Localization/Strings.cs b/Intersect.Editor/Localization/Strings.cs
+--- a/Intersect.Editor/Localization/Strings.cs	2026-09-10 20:43:21.105787647 +0000
++++ b/Intersect.Editor/Localization/Strings.cs	2026-09-10 21:40:17.149203891 +0000
+@@ -1419,6 +1419,61 @@
+         public static LocalizedString remove = @"Remove Selected";
+     }
+ 
++    public partial struct FactionEditor
++    {
++        public static LocalizedString cancel = @"Cancel";
++
++        public static LocalizedString copy = @"Copy Faction";
++
++        public static LocalizedString delete = @"Delete Faction";
++
++        public static LocalizedString deleteprompt =
++            @"Are you sure you want to delete this faction? This action cannot be reverted!";
++
++        public static LocalizedString folderlabel = @"Folder:";
++
++        public static LocalizedString foldertitle = @"Add Folder";
++
++        public static LocalizedString folderprompt = @"Enter a name for the folder you'd like to add:";
++
++        public static LocalizedString general = @"General";
++
++        public static LocalizedString name = @"Name:";
++
++        public static LocalizedString leaderplayerid = @"Leader Player Id:";
++
++        public static LocalizedString warcooldownhours = @"War Cooldown (Hrs):";
++
++        public static LocalizedString New = @"New Faction";
++
++        public static LocalizedString paste = @"Paste Faction";
++
++        public static LocalizedString save = @"Save";
++
++        public static LocalizedString searchplaceholder = @"Search...";
++
++        public static LocalizedString sortalphabetically = @"Order Alphabetically";
++
++        public static LocalizedString factions = @"Factions";
++
++        public static LocalizedString title = @"Faction Editor";
++
++        public static LocalizedString undo = @"Undo Changes";
++
++        public static LocalizedString undoprompt =
++            @"Are you sure you want to undo changes made to this faction? This action cannot be reverted!";
++
++        public static LocalizedString undotitle = @"Undo Changes";
++
++        public static LocalizedString atwarwith = @"At War With";
++
++        public static LocalizedString addatwarlabel = @"Declare War On:";
++
++        public static LocalizedString add = @"Add Selected";
++
++        public static LocalizedString remove = @"Remove Selected";
++    }
++
+     public partial struct CraftsEditor
+     {
+ 
+diff -ruN a/Intersect.Editor/Networking/PacketHandler.cs b/Intersect.Editor/Networking/PacketHandler.cs
+--- a/Intersect.Editor/Networking/PacketHandler.cs	2026-09-10 20:43:21.107262414 +0000
++++ b/Intersect.Editor/Networking/PacketHandler.cs	2026-09-10 21:36:50.173706343 +0000
+@@ -7,6 +7,7 @@
+ using Intersect.Enums;
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Crafting;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Events;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
+@@ -623,6 +624,21 @@
+                 }
+ 
+                 break;
++
++            case GameObjectType.Faction:
++                if (deleted)
++                {
++                    var fct = FactionDescriptor.Get(id);
++                    fct.Delete();
++                }
++                else
++                {
++                    var fct = new FactionDescriptor(id);
++                    fct.Load(json);
++                    FactionDescriptor.Lookup.Set(id, fct);
++                }
++
++                break;
+ 
+             case GameObjectType.Crafts:
+                 if (deleted)
+diff -ruN a/Intersect.Server/Networking/NetworkedPacketHandler.cs b/Intersect.Server/Networking/NetworkedPacketHandler.cs
+--- a/Intersect.Server/Networking/NetworkedPacketHandler.cs	2026-09-10 20:43:21.455573603 +0000
++++ b/Intersect.Server/Networking/NetworkedPacketHandler.cs	2026-09-11 02:09:39.445300190 +0000
+@@ -3,6 +3,7 @@
+ using Intersect.Framework.Core;
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Crafting;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Events;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
+@@ -976,6 +977,11 @@
+ 
+                     break;
+ 
++                case GameObjectType.Faction:
++                    obj = FactionDescriptor.Get(id);
++
++                    break;
++
+                 default:
+                     throw new ArgumentOutOfRangeException();
+             }
+@@ -1108,6 +1114,11 @@
+ 
+                     break;
+ 
++                case GameObjectType.Faction:
++                    obj = FactionDescriptor.Get(id);
++
++                    break;
++
+                 default:
+                     throw new ArgumentOutOfRangeException();
+             }
+diff -ruN a/Intersect.Server.Core/Database/DbInterface.cs b/Intersect.Server.Core/Database/DbInterface.cs
+--- a/Intersect.Server.Core/Database/DbInterface.cs	2026-09-10 20:43:21.223640813 +0000
++++ b/Intersect.Server.Core/Database/DbInterface.cs	2026-09-11 02:09:43.621761784 +0000
+@@ -12,6 +12,7 @@
+ using Intersect.Enums;
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Crafting;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Events;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
+@@ -700,6 +701,7 @@
+                 continue;
+             }
+ 
++            Console.WriteLine($"Loading game objects of type {type}...");
+             LoadGameObjects(type);
+         }
+     }
+@@ -782,6 +784,10 @@
+                 UserVariableDescriptor.Lookup.Clear();
+ 
+                 break;
++            case GameObjectType.Faction:
++                FactionDescriptor.Lookup.Clear();
++
++                break;
+             default:
+                 throw new ArgumentOutOfRangeException(nameof(type), type, null);
+         }
+@@ -932,6 +938,13 @@
+                         }
+ 
+                         break;
++                    case GameObjectType.Faction:
++                        foreach (var fct in context.Factions)
++                        {
++                            FactionDescriptor.Lookup.Set(fct.Id, fct);
++                        }
++
++                        break;
+                     default:
+                         throw new ArgumentOutOfRangeException(nameof(gameObjectType), gameObjectType, null);
+                 }
+diff -ruN a/Intersect.Server.Core/Database/GameData/GameContext.cs b/Intersect.Server.Core/Database/GameData/GameContext.cs
+--- a/Intersect.Server.Core/Database/GameData/GameContext.cs	2026-09-10 20:43:21.225107575 +0000
++++ b/Intersect.Server.Core/Database/GameData/GameContext.cs	2026-09-10 20:40:53.391522554 +0000
+@@ -2,6 +2,7 @@
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Crafting;
+ using Intersect.Framework.Core.GameObjects.Events;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
+ using Intersect.Framework.Core.GameObjects.Maps.MapList;
+@@ -32,6 +33,9 @@
+ 
+     public DbSet<CraftingTableDescriptor> CraftingTables { get; set; }
+ 
++    //Factions
++    public DbSet<FactionDescriptor> Factions { get; set; }
++
+     //Classes
+     public DbSet<ClassDescriptor> Classes { get; set; }
+ 
+diff -ruN a/Intersect.Server.Core/Entities/Factions/Faction.cs b/Intersect.Server.Core/Entities/Factions/Faction.cs
+--- a/Intersect.Server.Core/Entities/Factions/Faction.cs	2026-09-10 20:43:21.247423753 +0000
++++ b/Intersect.Server.Core/Entities/Factions/Faction.cs	1970-01-01 00:00:00.000000000 +0000
+@@ -1,50 +0,0 @@
+-using System;
+-using System.Collections.Generic;
+-
+-namespace Intersect.Server.Entities.Factions;
+-
+-public class Faction
+-{
+-    public Guid Id { get; set; } = Guid.NewGuid();
+-
+-    public string Name { get; set; } = string.Empty;
+-
+-    /// <summary>
+-    /// PlayerId of the current leader. Only this player may DeclareWar on
+-    /// this faction's behalf (checked in FactionManager.DeclareWar).
+-    /// </summary>
+-    public Guid? LeaderPlayerId { get; set; }
+-
+-    public DateTime? LastWarDeclarationTime { get; set; }
+-
+-    public static readonly TimeSpan WarDeclarationCooldown = TimeSpan.FromHours(1);
+-}
+-
+-/// <summary>
+-/// A single active war between two factions — symmetric, no attacker/defender
+-/// distinction. Existence of a row (either direction) is what
+-/// Entity.ResolveFactionAlly checks via FactionManager.AreAtWar.
+-/// </summary>
+-public class FactionWar
+-{
+-    public Guid Id { get; set; } = Guid.NewGuid();
+-
+-    public Guid FactionAId { get; set; }
+-
+-    public Guid FactionBId { get; set; }
+-
+-    public DateTime DeclaredAt { get; set; } = DateTime.UtcNow;
+-
+-    public bool IsBetween(Guid factionA, Guid factionB) =>
+-        (FactionAId == factionA && FactionBId == factionB) ||
+-        (FactionAId == factionB && FactionBId == factionA);
+-}
+-
+-public enum DeclareWarResult
+-{
+-    Success,
+-    NotLeader,
+-    OnCooldown,
+-    AlreadyAtWar,
+-    UnknownFaction
+-}
+diff -ruN a/Intersect.Server.Core/Entities/Factions/FactionManager.cs b/Intersect.Server.Core/Entities/Factions/FactionManager.cs
+--- a/Intersect.Server.Core/Entities/Factions/FactionManager.cs	2026-09-10 20:43:21.247539361 +0000
++++ b/Intersect.Server.Core/Entities/Factions/FactionManager.cs	2026-09-10 20:41:23.387360563 +0000
+@@ -1,40 +1,41 @@
+ using System;
+-using System.Collections.Generic;
+-using System.Linq;
++using Intersect.Framework.Core.GameObjects.Factions;
++using Intersect.Server.Database;
+ 
+ namespace Intersect.Server.Entities.Factions;
+ 
++public enum DeclareWarResult
++{
++    Success,
++    NotLeader,
++    OnCooldown,
++    AlreadyAtWar,
++    UnknownFaction
++}
++
+ /// <summary>
+-/// Registry of factions and active wars. Entity.ResolveFactionAlly calls
+-/// AreAtWar on every hostility check, so keep that method cheap (in-memory
+-/// list scan, no DB hit) — the TODOs below are where you wire up actual
+-/// persistence, loaded once at server start into these in-memory
+-/// collections.
++/// War-declaration logic on top of FactionDescriptor, which is now the real,
++/// persisted, Editor-manageable game object (see GameObjectType.Faction).
++/// Entity.ResolveFactionAlly calls FactionDescriptor.IsAtWarWith directly for
++/// the hostility check itself — this class is only for the leader-facing
++/// DeclareWar action and its cooldown/permission rules.
+ /// </summary>
+ public static class FactionManager
+ {
+-    private static readonly Dictionary<Guid, Faction> Factions = new();
+-    private static readonly List<FactionWar> ActiveWars = new();
+-
+-    public static void Register(Faction faction) => Factions[faction.Id] = faction;
+-
+-    public static Faction? Get(Guid factionId) =>
+-        Factions.TryGetValue(factionId, out var f) ? f : null;
+-
+-    public static bool AreAtWar(Guid factionA, Guid factionB) =>
+-        ActiveWars.Any(w => w.IsBetween(factionA, factionB));
+-
+     /// <summary>
+     /// Declares war on behalf of a faction leader. Enforces leadership,
+-    /// per-faction cooldown, and blocks duplicate wars. On Success, the
++    /// per-faction cooldown, and blocks duplicate wars. Updates both
++    /// factions' AtWarWith lists (symmetric) and saves them. On Success, the
+     /// caller (see DeclareWarEventCommand) is responsible for refreshing
+     /// affected maps' NPCs — kept separate so this class has no dependency
+     /// on map/instance code.
+     /// </summary>
+     public static DeclareWarResult DeclareWar(Guid invokingPlayerId, Guid declaringFactionId, Guid targetFactionId)
+     {
+-        if (!Factions.TryGetValue(declaringFactionId, out var declaring) ||
+-            !Factions.ContainsKey(targetFactionId))
++        var declaring = FactionDescriptor.Get(declaringFactionId);
++        var target = FactionDescriptor.Get(targetFactionId);
++
++        if (declaring == null || target == null)
+         {
+             return DeclareWarResult.UnknownFaction;
+         }
+@@ -45,29 +46,48 @@
+         }
+ 
+         if (declaring.LastWarDeclarationTime.HasValue &&
+-            DateTime.UtcNow - declaring.LastWarDeclarationTime.Value < Faction.WarDeclarationCooldown)
++            DateTime.UtcNow - declaring.LastWarDeclarationTime.Value < TimeSpan.FromHours(declaring.WarCooldownHours))
+         {
+             return DeclareWarResult.OnCooldown;
+         }
+ 
+-        if (AreAtWar(declaringFactionId, targetFactionId))
++        if (declaring.IsAtWarWith(targetFactionId))
+         {
+             return DeclareWarResult.AlreadyAtWar;
+         }
+ 
+-        ActiveWars.Add(new FactionWar { FactionAId = declaringFactionId, FactionBId = targetFactionId });
++        declaring.AtWarWith.Add(targetFactionId);
++        target.AtWarWith.Add(declaringFactionId);
+         declaring.LastWarDeclarationTime = DateTime.UtcNow;
+ 
+-        // TODO: persist the new FactionWar row and declaring.LastWarDeclarationTime
+-        // to your DbContext here.
++        DbInterface.SaveGameObject(declaring);
++        DbInterface.SaveGameObject(target);
+ 
+         return DeclareWarResult.Success;
+     }
+ 
+     public static bool EndWar(Guid factionA, Guid factionB)
+     {
+-        var removed = ActiveWars.RemoveAll(w => w.IsBetween(factionA, factionB));
+-        // TODO: persist removal.
+-        return removed > 0;
++        var a = FactionDescriptor.Get(factionA);
++        var b = FactionDescriptor.Get(factionB);
++
++        if (a == null || b == null)
++        {
++            return false;
++        }
++
++        var removed = a.AtWarWith.Remove(factionB);
++        b.AtWarWith.Remove(factionA);
++
++        if (removed)
++        {
++            DbInterface.SaveGameObject(a);
++            DbInterface.SaveGameObject(b);
++        }
++
++        return removed;
+     }
++
++    public static bool AreAtWar(Guid factionA, Guid factionB) =>
++        FactionDescriptor.Get(factionA)?.IsAtWarWith(factionB) ?? false;
+ }
+diff -ruN a/Intersect.Server.Core/Entities/Npc.cs b/Intersect.Server.Core/Entities/Npc.cs
+--- a/Intersect.Server.Core/Entities/Npc.cs	2026-09-10 20:43:21.242548144 +0000
++++ b/Intersect.Server.Core/Entities/Npc.cs	2026-09-10 20:41:57.138772395 +0000
+@@ -117,6 +117,7 @@
+         Immunities = npcDescriptor.Immunities;
+         Descriptor = npcDescriptor;
+         Despawnable = despawnable;
++        FactionId = npcDescriptor.FactionId;
+ 
+         for (var i = 0; i < Enum.GetValues<Stat>().Length; i++)
+         {
+diff -ruN a/Intersect.Server.Core/Networking/PacketSender.cs b/Intersect.Server.Core/Networking/PacketSender.cs
+--- a/Intersect.Server.Core/Networking/PacketSender.cs	2026-09-10 20:43:21.312416954 +0000
++++ b/Intersect.Server.Core/Networking/PacketSender.cs	2026-09-11 02:09:17.053432449 +0000
+@@ -4,6 +4,7 @@
+ using Intersect.Framework.Core;
+ using Intersect.Framework.Core.GameObjects.Animations;
+ using Intersect.Framework.Core.GameObjects.Crafting;
++using Intersect.Framework.Core.GameObjects.Factions;
+ using Intersect.Framework.Core.GameObjects.Events;
+ using Intersect.Framework.Core.GameObjects.Items;
+ using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
+@@ -1855,6 +1856,13 @@
+                 {
+                     SendGameObject(client, obj.Value, false, false, packetList);
+                 }
++
++                break;
++            case GameObjectType.Faction:
++                foreach (var obj in FactionDescriptor.Lookup)
++                {
++                    SendGameObject(client, obj.Value, false, false, packetList);
++                }
+ 
+                 break;
+             default:

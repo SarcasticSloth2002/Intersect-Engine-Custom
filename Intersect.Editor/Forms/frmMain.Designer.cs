@@ -107,6 +107,7 @@ namespace Intersect.Editor.Forms
             this.commonEventEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.craftsEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.craftingTableEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.factionEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.itemEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.npcEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.projectileEditorToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -809,6 +810,7 @@ namespace Intersect.Editor.Forms
             this.commonEventEditorToolStripMenuItem,
             this.craftsEditorToolStripMenuItem,
             this.craftingTableEditorToolStripMenuItem,
+            this.factionEditorToolStripMenuItem,
             this.itemEditorToolStripMenuItem,
             this.npcEditorToolStripMenuItem,
             this.projectileEditorToolStripMenuItem,
@@ -862,6 +864,14 @@ namespace Intersect.Editor.Forms
             this.craftingTableEditorToolStripMenuItem.Size = new System.Drawing.Size(191, 22);
             this.craftingTableEditorToolStripMenuItem.Text = "Crafting Table Editor";
             this.craftingTableEditorToolStripMenuItem.Click += new System.EventHandler(this.craftingTablesEditorToolStripMenuItem_Click);
+            // 
+            // factionEditorToolStripMenuItem
+            // 
+            this.factionEditorToolStripMenuItem.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(220)))), ((int)(((byte)(220)))));
+            this.factionEditorToolStripMenuItem.Name = "factionEditorToolStripMenuItem";
+            this.factionEditorToolStripMenuItem.Size = new System.Drawing.Size(191, 22);
+            this.factionEditorToolStripMenuItem.Text = "Faction Editor";
+            this.factionEditorToolStripMenuItem.Click += new System.EventHandler(this.factionEditorToolStripMenuItem_Click);
             // 
             // itemEditorToolStripMenuItem
             // 
@@ -1101,6 +1111,7 @@ namespace Intersect.Editor.Forms
 		private ToolStripMenuItem classEditorToolStripMenuItem;
 		private ToolStripMenuItem commonEventEditorToolStripMenuItem;
 		private ToolStripMenuItem craftingTableEditorToolStripMenuItem;
+		private ToolStripMenuItem factionEditorToolStripMenuItem;
 		private ToolStripMenuItem itemEditorToolStripMenuItem;
 		private ToolStripMenuItem npcEditorToolStripMenuItem;
 		private ToolStripMenuItem projectileEditorToolStripMenuItem;

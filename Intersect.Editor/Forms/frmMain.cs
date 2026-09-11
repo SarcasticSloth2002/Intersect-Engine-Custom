@@ -50,6 +50,7 @@ public partial class FrmMain : Form
     private FrmCommonEvent mCommonEventEditor;
 
     private FrmCraftingTables mCraftingTablesEditor;
+    private FrmFactions mFactionEditor;
 
     private FrmCrafts mCraftsEditor;
 
@@ -1252,6 +1253,11 @@ public partial class FrmMain : Form
         PacketSender.SendOpenEditor(GameObjectType.CraftTables);
     }
 
+    private void factionEditorToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        PacketSender.SendOpenEditor(GameObjectType.Faction);
+    }
+
     private void craftsEditorToolStripMenuItem_Click(object sender, EventArgs e)
     {
         PacketSender.SendOpenEditor(GameObjectType.Crafts);
@@ -1655,6 +1661,15 @@ public partial class FrmMain : Form
                         mCraftingTablesEditor = new FrmCraftingTables();
                         mCraftingTablesEditor.InitEditor();
                         mCraftingTablesEditor.Show();
+                    }
+
+                    break;
+                case GameObjectType.Faction:
+                    if (mFactionEditor == null || mFactionEditor.Visible == false)
+                    {
+                        mFactionEditor = new FrmFactions();
+                        mFactionEditor.InitEditor();
+                        mFactionEditor.Show();
                     }
 
                     break;

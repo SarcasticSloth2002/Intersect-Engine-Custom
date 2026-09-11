@@ -3,6 +3,7 @@ using Intersect.Enums;
 using Intersect.Framework.Core;
 using Intersect.Framework.Core.GameObjects.Animations;
 using Intersect.Framework.Core.GameObjects.Crafting;
+using Intersect.Framework.Core.GameObjects.Factions;
 using Intersect.Framework.Core.GameObjects.Events;
 using Intersect.Framework.Core.GameObjects.Items;
 using Intersect.Framework.Core.GameObjects.Mapping.Tilesets;
@@ -976,6 +977,11 @@ internal sealed partial class NetworkedPacketHandler
 
                     break;
 
+                case GameObjectType.Faction:
+                    obj = FactionDescriptor.Get(id);
+
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -1105,6 +1111,11 @@ internal sealed partial class NetworkedPacketHandler
 
                 case GameObjectType.UserVariable:
                     obj = UserVariableDescriptor.Get(id);
+
+                    break;
+
+                case GameObjectType.Faction:
+                    obj = FactionDescriptor.Get(id);
 
                     break;
 
